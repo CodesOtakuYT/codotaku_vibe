@@ -219,8 +219,12 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
 
     SDL_GPURenderPass *pass = chk(SDL_BeginGPURenderPass(cmdbuf, &colorInfo, 1, &depthInfo));
 
+    int last_mat = -1;
     for (const auto &inst : scene.Instances()) {
-        materials_[inst.material_index].Bind(pass, cmdbuf);
+        if (static_cast<int>(inst.material_index) != last_mat) {
+            materials_[inst.material_index].Bind(pass, cmdbuf);
+            last_mat = static_cast<int>(inst.material_index);
+        }
 
         auto &gb = geometry_buffers_[inst.geometry_index];
 
