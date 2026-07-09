@@ -17,7 +17,7 @@ public:
         uploader_ = std::make_unique<Uploader>(gpu_->Device());
         camera_ = std::make_unique<OrbitCamera>();
         scene_ = std::make_unique<Scene>();
-        renderer_ = std::make_unique<Renderer>(gpu_.get(), resources_.get(), *uploader_, Renderer::MsaaMode::None);
+        renderer_ = std::make_unique<Renderer>(gpu_.get(), resources_.get(), *uploader_, *scene_, Renderer::MsaaMode::None);
     }
 
     auto Event(const SDL_Event *event) -> SDL_AppResult override {
