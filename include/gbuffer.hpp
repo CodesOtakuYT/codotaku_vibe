@@ -3,11 +3,9 @@
 #include <sdl.hpp>
 #include <vector>
 
-enum class AttachmentType : Uint8 { Color, DepthStencil };
-
 struct AttachmentDesc {
     SDL_GPUTextureFormat format;
-    AttachmentType type;
+    Uint32 usage;
     SDL_GPUSampleCount sample_count = SDL_GPU_SAMPLECOUNT_1;
 };
 
@@ -19,7 +17,6 @@ public:
     int AddAttachment(AttachmentDesc desc);
 
     SDL_GPUTexture *GetTexture(int index) const;
-    SDL_GPUTexture *GetResolveTexture(int index) const;
 
     void Resize(int width, int height);
 
@@ -30,7 +27,6 @@ private:
     struct Attachment {
         AttachmentDesc desc;
         SDL_GPUTexture *texture = nullptr;
-        SDL_GPUTexture *resolve_texture = nullptr;
     };
 
     void CreateAttachment(Attachment &att);

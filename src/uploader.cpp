@@ -5,41 +5,46 @@
 Uploader::Uploader(SDL_GPUDevice *device)
     : device_(device) {}
 
-void Uploader::Begin(Uint32 total_size) {
-    total_size_ = total_size;
-    current_offset_ = 0;
+void Uploader::Begin() {
     copies_.clear();
-
-    SDL_GPUTransferBufferCreateInfo tbInfo = {
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = total_size_,
-    };
-    transfer_ = chk(SDL_CreateGPUTransferBuffer(device_, &tbInfo));
-    mapped_ = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device_, transfer_, false)));
-    cmdbuf_ = chk(SDL_AcquireGPUCommandBuffer(device_));
 }
 
 void Uploader::Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, const void *data, Uint32 size) {
-    std::memcpy(mapped_ + current_offset_, data, size);
-    copies_.push_back({dst, current_offset_, dst_offset, size});
-    current_offset_ += size;
+    copies_.push_back({dst, data, dst_offset, size});
 }
 
 void Uploader::End() {
-    SDL_UnmapGPUTransferBuffer(device_, transfer_);
-    mapped_ = nullptr;
+    Uint32 total = 0;
+    for (auto &c : copies_) total += c.size;
 
-    SDL_GPUCopyPass *copy = chk(SDL_BeginGPUCopyPass(cmdbuf_));
+    SDL_GPUTransferBufferCreateInfo tbInfo = {
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = total,
+    };
+    auto *transfer = chk(SDL_CreateGPUTransferBuffer(device_, &tbInfo));
+    auto *mapped = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device_, transfer, false)));
 
-    for (const auto &op : copies_) {
-        SDL_GPUTransferBufferLocation srcLoc = { .transfer_buffer = transfer_, .offset = op.src_offset };
-        SDL_GPUBufferRegion dstReg = { .buffer = op.buffer, .offset = op.dst_offset, .size = op.size };
-        SDL_UploadToGPUBuffer(copy, &srcLoc, &dstReg, false);
+    Uint32 offset = 0;
+    for (auto &c : copies_) {
+        std::memcpy(mapped + offset, c.data, c.size);
+        offset += c.size;
     }
 
-    SDL_EndGPUCopyPass(copy);
-    chk(SDL_SubmitGPUCommandBuffer(cmdbuf_));
-    SDL_ReleaseGPUTransferBuffer(device_, transfer_);
-    transfer_ = nullptr;
-    cmdbuf_ = nullptr;
+    SDL_UnmapGPUTransferBuffer(device_, transfer);
+
+    auto *cmdbuf = chk(SDL_AcquireGPUCommandBuffer(device_));
+    auto *copyPass = chk(SDL_BeginGPUCopyPass(cmdbuf));
+
+    offset = 0;
+    for (const auto &c : copies_) {
+        SDL_GPUTransferBufferLocation srcLoc = { .transfer_buffer = transfer, .offset = offset };
+        SDL_GPUBufferRegion dstReg = { .buffer = c.buffer, .offset = c.dst_offset, .size = c.size };
+        SDL_UploadToGPUBuffer(copyPass, &srcLoc, &dstReg, false);
+        offset += c.size;
+    }
+
+    SDL_EndGPUCopyPass(copyPass);
+    chk(SDL_SubmitGPUCommandBuffer(cmdbuf));
+    SDL_ReleaseGPUTransferBuffer(device_, transfer);
+    copies_.clear();
 }

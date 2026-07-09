@@ -16,8 +16,8 @@ public:
         resources_ = std::make_unique<ResourceManager>(gpu_->Device());
         uploader_ = std::make_unique<Uploader>(gpu_->Device());
         camera_ = std::make_unique<OrbitCamera>();
-        scene_ = std::make_unique<Scene>(gpu_->Device(), *uploader_);
-        renderer_ = std::make_unique<Renderer>(gpu_.get(), resources_.get(), Renderer::MsaaMode::None);
+        scene_ = std::make_unique<Scene>();
+        renderer_ = std::make_unique<Renderer>(gpu_.get(), resources_.get(), *uploader_, Renderer::MsaaMode::None);
     }
 
     auto Event(const SDL_Event *event) -> SDL_AppResult override {
@@ -48,7 +48,8 @@ public:
         }
 
         scene_->Update(dt);
-        renderer_->Render(cmdbuf, swapchain, w, h, *camera_, *scene_);
+        auto viewProj = camera_->ViewProjMatrix(w, h);
+        renderer_->Render(cmdbuf, swapchain, viewProj, *scene_);
         gpu_->EndFrame(cmdbuf);
         return SDL_APP_CONTINUE;
     }

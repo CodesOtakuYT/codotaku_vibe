@@ -7,22 +7,36 @@
 
 class GPUContext;
 class ResourceManager;
-class OrbitCamera;
+class Uploader;
 class Scene;
+
+struct PositionColorVertex {
+    glm::vec3 pos;
+    glm::u8vec4 color;
+};
 
 class Renderer {
 public:
     enum class MsaaMode { None, X2, X4, X8 };
 
-    Renderer(GPUContext *gpu, ResourceManager *resources, MsaaMode msaa = MsaaMode::None);
+    Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &uploader, MsaaMode msaa = MsaaMode::None);
     ~Renderer();
 
     void Resize(int w, int h);
-    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, int w, int h, const OrbitCamera &camera, Scene &scene);
+    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, Scene &scene);
 
 private:
     GPUContext *gpu_;
     GBuffer gbuffer_;
+    Uploader &uploader_;
     SDL_GPUGraphicsPipeline *pipeline_ = nullptr;
     MsaaMode msaa_ = MsaaMode::None;
+    int width_ = 0;
+    int height_ = 0;
+    int color_att_ = -1;
+    int resolve_att_ = -1;
+    int depth_att_ = -1;
+    SDL_GPUBuffer *vertex_buffer_ = nullptr;
+    SDL_GPUBuffer *index_buffer_ = nullptr;
+    int index_count_ = 0;
 };
