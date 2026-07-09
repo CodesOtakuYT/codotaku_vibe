@@ -38,6 +38,8 @@ private:
     GBuffer gbuffer_;
     Uploader &uploader_;
     SDL_GPUGraphicsPipeline *pipeline_ = nullptr;
+    SDL_GPUTexture *texture_ = nullptr;
+    SDL_GPUSampler *sampler_ = nullptr;
     MsaaMode msaa_ = MsaaMode::None;
     glm::ivec2 size_{};
     int color_att_ = -1;

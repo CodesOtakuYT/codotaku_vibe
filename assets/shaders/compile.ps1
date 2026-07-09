@@ -11,18 +11,24 @@ if (-not (Get-Command $ShaderCross -ErrorAction SilentlyContinue)) {
 }
 
 $OutDirs = @{
-    "SPIRV" = "compiled/SPIRV"
-    "MSL"   = "compiled/MSL"
-    "DXIL"  = "compiled/DXIL"
+    "SPIRV" = @{ dir = "compiled/SPIRV"; ext = "spv" }
+    "MSL"   = @{ dir = "compiled/MSL";   ext = "msl" }
+    "DXIL"  = @{ dir = "compiled/DXIL";  ext = "dxil" }
 }
 
 $SourceDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+foreach ($fmt in $OutDirs.Keys) {
+    $outDir = "$SourceDir/$($OutDirs[$fmt].dir)"
+    if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
+}
+
 Get-ChildItem "$SourceDir\*.hlsl" | ForEach-Object {
     $stem = $_.BaseName
     foreach ($fmt in $OutDirs.Keys) {
-        $outDir = "$SourceDir/$($OutDirs[$fmt])"
-        $outFile = "$outDir/$stem.$($fmt.ToLower())"
+        $info = $OutDirs[$fmt]
+        $outDir = "$SourceDir/$($info.dir)"
+        $outFile = "$outDir/$stem.$($info.ext)"
         & $ShaderCross $_.FullName -o $outFile
         Write-Output "$($_.Name) -> $outFile"
     }

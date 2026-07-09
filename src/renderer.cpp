@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstddef>
+#include <format>
 #include <span>
 
 namespace {
@@ -52,7 +53,7 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
     }
 
     SDL_GPUShader *vert = resources->LoadShader("Cube.vert", 0, 1);
-    SDL_GPUShader *frag = resources->LoadShader("Cube.frag");
+    SDL_GPUShader *frag = resources->LoadShader("Cube.frag", 1);
 
     SDL_GPUColorTargetDescription colorDesc = {
         .format = gpu_->SwapchainFormat(),
@@ -60,13 +61,13 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
 
     SDL_GPUVertexBufferDescription vbDesc = {
         .slot = 0,
-        .pitch = sizeof(PositionColorVertex),
+        .pitch = sizeof(PositionTextureVertex),
         .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
     };
 
     SDL_GPUVertexAttribute attrs[2] = {
         { .location = 0, .buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, .offset = 0 },
-        { .location = 1, .buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM, .offset = offsetof(PositionColorVertex, color) },
+        { .location = 1, .buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, .offset = offsetof(PositionTextureVertex, uv) },
     };
 
     SDL_GPUVertexInputState vertexInput = {
@@ -122,7 +123,7 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
 
         SDL_GPUBufferCreateInfo vbInfo = {
             .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-            .size = static_cast<Uint32>(geo.vertices.size() * sizeof(PositionColorVertex)),
+            .size = static_cast<Uint32>(geo.vertices.size() * sizeof(PositionTextureVertex)),
         };
         gb.vertex_buffer = chk(SDL_CreateGPUBuffer(device, &vbInfo));
         uploader_.Buffer(gb.vertex_buffer, 0, std::as_bytes(std::span(geo.vertices)));
@@ -135,11 +136,65 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
         uploader_.Buffer(gb.index_buffer, 0, std::as_bytes(std::span(geo.indices)));
     }
     uploader_.End();
+
+    // Load texture
+    const char *base = SDL_GetBasePath();
+    std::string texPath = std::string(base) + "assets/textures/ravioli.bmp";
+    SDL_Surface *surface = chk(SDL_LoadBMP(texPath.c_str()));
+
+    SDL_GPUTextureCreateInfo texInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+        .width = static_cast<Uint32>(surface->w),
+        .height = static_cast<Uint32>(surface->h),
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+    };
+    texture_ = chk(SDL_CreateGPUTexture(device, &texInfo));
+
+    SDL_GPUSamplerCreateInfo sampInfo = {
+        .min_filter = SDL_GPU_FILTER_LINEAR,
+        .mag_filter = SDL_GPU_FILTER_LINEAR,
+        .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+        .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+    };
+    sampler_ = chk(SDL_CreateGPUSampler(device, &sampInfo));
+
+    Uint32 texSize = static_cast<Uint32>(surface->w * surface->h * 4);
+    SDL_GPUTransferBufferCreateInfo tbInfo = {
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = texSize,
+    };
+    SDL_GPUTransferBuffer *tbuf = chk(SDL_CreateGPUTransferBuffer(device, &tbInfo));
+    auto *mapped = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device, tbuf, false)));
+    std::memcpy(mapped, surface->pixels, texSize);
+    SDL_UnmapGPUTransferBuffer(device, tbuf);
+
+    SDL_GPUCommandBuffer *cmd = chk(SDL_AcquireGPUCommandBuffer(device));
+    SDL_GPUCopyPass *copy = chk(SDL_BeginGPUCopyPass(cmd));
+    SDL_GPUTextureTransferInfo srcInfo = { .transfer_buffer = tbuf, .offset = 0 };
+    SDL_GPUTextureRegion dstRegion = {
+        .texture = texture_,
+        .w = static_cast<Uint32>(surface->w),
+        .h = static_cast<Uint32>(surface->h),
+        .d = 1,
+    };
+    SDL_UploadToGPUTexture(copy, &srcInfo, &dstRegion, false);
+    SDL_EndGPUCopyPass(copy);
+    chk(SDL_SubmitGPUCommandBuffer(cmd));
+
+    SDL_ReleaseGPUTransferBuffer(device, tbuf);
+    SDL_DestroySurface(surface);
 }
 
 Renderer::~Renderer() {
     auto device = gpu_->Device();
     SDL_ReleaseGPUGraphicsPipeline(device, pipeline_);
+    if (texture_) SDL_ReleaseGPUTexture(device, texture_);
+    if (sampler_) SDL_ReleaseGPUSampler(device, sampler_);
     for (auto &gb : geometry_buffers_) {
         SDL_ReleaseGPUBuffer(device, gb.vertex_buffer);
         SDL_ReleaseGPUBuffer(device, gb.index_buffer);
@@ -179,6 +234,9 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
 
     SDL_BindGPUGraphicsPipeline(pass, pipeline_);
 
+    SDL_GPUTextureSamplerBinding texBind = { .texture = texture_, .sampler = sampler_ };
+    SDL_BindGPUFragmentSamplers(pass, 0, &texBind, 1);
+
     for (const auto &inst : scene.Instances()) {
         auto &gb = geometry_buffers_[inst.geometry_index];
 
@@ -188,7 +246,7 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
         SDL_GPUBufferBinding ibBind = { .buffer = gb.index_buffer };
         SDL_BindGPUIndexBuffer(pass, &ibBind, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-        glm::mat4 mvp = viewProj * inst.Transform();
+        glm::mat4 mvp = viewProj * inst.transform;
         SDL_PushGPUVertexUniformData(cmdbuf, 0, glm::value_ptr(mvp), sizeof(glm::mat4));
         SDL_DrawGPUIndexedPrimitives(pass, gb.index_count, 1, 0, 0, 0);
     }

@@ -5,23 +5,19 @@
 #include <span>
 #include <vector>
 
-struct PositionColorVertex {
+struct PositionTextureVertex {
     glm::vec3 pos;
-    glm::u8vec4 color;
+    glm::vec2 uv;
 };
 
 struct Geometry {
-    std::vector<PositionColorVertex> vertices;
+    std::vector<PositionTextureVertex> vertices;
     std::vector<Uint16> indices;
 };
 
 struct Instance {
     size_t geometry_index = 0;
-    glm::vec3 position{0.0f};
-    float rotation = 0.0f;
-    glm::vec3 rotation_axis{0.0f, 1.0f, 0.0f};
-
-    glm::mat4 Transform() const;
+    glm::mat4 transform{1.0f};
 };
 
 class Scene {
@@ -36,4 +32,5 @@ public:
 private:
     std::vector<Geometry> geometries_;
     std::vector<Instance> instances_;
+    float time_ = 0;
 };

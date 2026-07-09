@@ -4,31 +4,31 @@
 
 namespace {
 
-constexpr PositionColorVertex cubeVerts[24] = {
-    { { -10, -10, -10 }, { 255,   0,   0, 255 } },
-    { {  10, -10, -10 }, { 255,   0,   0, 255 } },
-    { {  10,  10, -10 }, { 255,   0,   0, 255 } },
-    { { -10,  10, -10 }, { 255,   0,   0, 255 } },
-    { { -10, -10,  10 }, { 255, 255,   0, 255 } },
-    { {  10, -10,  10 }, { 255, 255,   0, 255 } },
-    { {  10,  10,  10 }, { 255, 255,   0, 255 } },
-    { { -10,  10,  10 }, { 255, 255,   0, 255 } },
-    { { -10, -10, -10 }, { 255,   0, 255, 255 } },
-    { { -10,  10, -10 }, { 255,   0, 255, 255 } },
-    { { -10,  10,  10 }, { 255,   0, 255, 255 } },
-    { { -10, -10,  10 }, { 255,   0, 255, 255 } },
-    { {  10, -10, -10 }, {   0, 255,   0, 255 } },
-    { {  10,  10, -10 }, {   0, 255,   0, 255 } },
-    { {  10,  10,  10 }, {   0, 255,   0, 255 } },
-    { {  10, -10,  10 }, {   0, 255,   0, 255 } },
-    { { -10, -10, -10 }, {   0,   0, 255, 255 } },
-    { { -10, -10,  10 }, {   0,   0, 255, 255 } },
-    { {  10, -10,  10 }, {   0,   0, 255, 255 } },
-    { {  10, -10, -10 }, {   0,   0, 255, 255 } },
-    { { -10,  10, -10 }, {   0, 255, 255, 255 } },
-    { { -10,  10,  10 }, {   0, 255, 255, 255 } },
-    { {  10,  10,  10 }, {   0, 255, 255, 255 } },
-    { {  10,  10, -10 }, {   0, 255, 255, 255 } },
+constexpr PositionTextureVertex cubeVerts[24] = {
+    { { -10, -10, -10 }, { 0, 0 } },
+    { {  10, -10, -10 }, { 1, 0 } },
+    { {  10,  10, -10 }, { 1, 1 } },
+    { { -10,  10, -10 }, { 0, 1 } },
+    { { -10, -10,  10 }, { 0, 0 } },
+    { {  10, -10,  10 }, { 1, 0 } },
+    { {  10,  10,  10 }, { 1, 1 } },
+    { { -10,  10,  10 }, { 0, 1 } },
+    { { -10, -10, -10 }, { 0, 0 } },
+    { { -10,  10, -10 }, { 1, 0 } },
+    { { -10,  10,  10 }, { 1, 1 } },
+    { { -10, -10,  10 }, { 0, 1 } },
+    { {  10, -10, -10 }, { 0, 0 } },
+    { {  10,  10, -10 }, { 1, 0 } },
+    { {  10,  10,  10 }, { 1, 1 } },
+    { {  10, -10,  10 }, { 0, 1 } },
+    { { -10, -10, -10 }, { 0, 0 } },
+    { { -10, -10,  10 }, { 1, 0 } },
+    { {  10, -10,  10 }, { 1, 1 } },
+    { {  10, -10, -10 }, { 0, 1 } },
+    { { -10,  10, -10 }, { 0, 0 } },
+    { { -10,  10,  10 }, { 1, 0 } },
+    { {  10,  10,  10 }, { 1, 1 } },
+    { {  10,  10, -10 }, { 0, 1 } },
 };
 
 constexpr Uint16 cubeIndices[36] = {
@@ -40,12 +40,12 @@ constexpr Uint16 cubeIndices[36] = {
     22, 21, 20, 23, 22, 20,
 };
 
-constexpr PositionColorVertex pyramidVerts[5] = {
-    { {   0, 10,   0 }, { 255, 255, 255, 255 } },
-    { { -10, -10, -10 }, {   0, 255, 255, 255 } },
-    { {  10, -10, -10 }, {   0, 255, 255, 255 } },
-    { {  10, -10,  10 }, {   0, 255, 255, 255 } },
-    { { -10, -10,  10 }, {   0, 255, 255, 255 } },
+constexpr PositionTextureVertex pyramidVerts[5] = {
+    { {   0, 10,   0 }, { 0.5f, 1.0f } },
+    { { -10, -10, -10 }, { 0.0f, 0.0f } },
+    { {  10, -10, -10 }, { 1.0f, 0.0f } },
+    { {  10, -10,  10 }, { 1.0f, 1.0f } },
+    { { -10, -10,  10 }, { 0.0f, 1.0f } },
 };
 
 constexpr Uint16 pyramidIndices[18] = {
@@ -69,38 +69,24 @@ Scene::Scene() {
     pyramid.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
 
     instances_.push_back({ .geometry_index = 0 });
-
-    instances_.push_back({
-        .geometry_index = 0,
-        .position = { 15.0f, 0.0f, 0.0f },
-        .rotation_axis = { 1.0f, 0.0f, 0.0f },
-    });
-
-    instances_.push_back({
-        .geometry_index = 1,
-        .position = { -15.0f, 0.0f, -15.0f },
-        .rotation_axis = { 0.0f, 0.0f, 1.0f },
-    });
+    instances_.push_back({ .geometry_index = 0 });
+    instances_.push_back({ .geometry_index = 1 });
 }
 
 void Scene::Update(float dt) {
+    time_ += dt;
+
     auto &i0 = instances_[0];
-    i0.rotation += dt * 0.5f;
+    float r0 = time_ * 0.5f;
+    i0.transform = glm::rotate(glm::mat4{1}, r0, {0, 1, 0});
 
     auto &i1 = instances_[1];
-    float t = i0.rotation;
-    i1.position.x = 15.0f * cosf(t * 0.7f);
-    i1.position.z = 15.0f * sinf(t * 0.7f);
-    i1.rotation += dt * 0.8f;
+    glm::vec3 p1{15.0f * cosf(r0 * 0.7f), 0.0f, 15.0f * sinf(r0 * 0.7f)};
+    i1.transform = glm::translate(glm::mat4{1}, p1) *
+                   glm::rotate(glm::mat4{1}, time_ * 0.8f, {1, 0, 0});
 
     auto &i2 = instances_[2];
-    i2.position.x = -20.0f * cosf(t * 0.5f);
-    i2.position.z = -20.0f * sinf(t * 0.5f);
-    i2.position.y = 10.0f + 5.0f * sinf(t * 0.3f);
-    i2.rotation += dt * 0.3f;
-}
-
-glm::mat4 Instance::Transform() const {
-    return glm::translate(glm::mat4(1.0f), position) *
-           glm::rotate(glm::mat4(1.0f), rotation, rotation_axis);
+    glm::vec3 p2{-20.0f * cosf(r0 * 0.5f), 10.0f + 5.0f * sinf(r0 * 0.3f), -20.0f * sinf(r0 * 0.5f)};
+    i2.transform = glm::translate(glm::mat4{1}, p2) *
+                   glm::rotate(glm::mat4{1}, time_ * 0.3f, {0, 0, 1});
 }
