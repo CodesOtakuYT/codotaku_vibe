@@ -138,6 +138,23 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
         vertexInput
     );
 
+    // Wireframe material (no texture, green, line fill)
+    SDL_GPUShader *solidFrag = resources->LoadShader("SolidColor.frag", 0, 0);
+    materials_.emplace_back(
+        device,
+        MaterialCreateInfo{
+            .vertex_shader = vert,
+            .fragment_shader = solidFrag,
+            .texture = nullptr,
+            .sampler = nullptr,
+            .color_format = gpu_->SwapchainFormat(),
+            .sample_count = sampleCount,
+            .fill_mode = SDL_GPU_FILLMODE_LINE,
+        },
+        vertexInput
+    );
+    SDL_ReleaseGPUShader(device, solidFrag);
+
     SDL_ReleaseGPUShader(device, vert);
     SDL_ReleaseGPUShader(device, frag);
 

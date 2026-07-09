@@ -78,6 +78,8 @@ Material::~Material() {
 
 void Material::Bind(SDL_GPURenderPass *pass, SDL_GPUCommandBuffer *cmdbuf) const {
     SDL_BindGPUGraphicsPipeline(pass, pipeline_);
-    SDL_GPUTextureSamplerBinding texBind = { .texture = texture_, .sampler = sampler_ };
-    SDL_BindGPUFragmentSamplers(pass, 0, &texBind, 1);
+    if (texture_ && sampler_) {
+        SDL_GPUTextureSamplerBinding texBind = { .texture = texture_, .sampler = sampler_ };
+        SDL_BindGPUFragmentSamplers(pass, 0, &texBind, 1);
+    }
 }

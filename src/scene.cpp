@@ -69,7 +69,7 @@ Scene::Scene() {
     pyramid.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
 
     instances_.push_back({ .geometry_index = 0, .material_index = 0 });
-    instances_.push_back({ .geometry_index = 0, .material_index = 0 });
+    instances_.push_back({ .geometry_index = 0, .material_index = 1 }); // orbiting cube = wireframe
     instances_.push_back({ .geometry_index = 1, .material_index = 0 });
 }
 
