@@ -38,7 +38,7 @@ class Engine : public App {
 public:
     explicit Engine(std::span<char *> args)
         : gpu_("Codotaku Vibe Engine", glm::ivec2(800, 600))
-        , resources_(gpu_.Device())
+        , resources_(gpu_.Device(), uploader_)
         , uploader_(gpu_.Device())
         , scene_(MakeTestScene())
         , renderer_(&gpu_, &resources_, uploader_, scene_, Renderer::MsaaMode::None)

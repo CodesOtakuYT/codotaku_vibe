@@ -17,6 +17,7 @@ public:
 
     void Begin();
     void Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, std::span<const std::byte> data);
+    void Texture(SDL_GPUTexture *tex, int w, int h, const void *pixels);
     void End();
 
 private:
@@ -27,6 +28,13 @@ private:
         Uint32 size;
     };
 
+    struct TextureCopy {
+        SDL_GPUTexture *texture;
+        const void *data;
+        int w, h;
+    };
+
     SDL_GPUDevice *device_;
     std::vector<BufferCopy> copies_;
+    std::vector<TextureCopy> textures_;
 };

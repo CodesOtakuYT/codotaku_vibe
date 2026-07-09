@@ -56,8 +56,6 @@ Material::Material(Material &&other) noexcept
 Material &Material::operator=(Material &&other) noexcept {
     if (this != &other) {
         if (pipeline_) SDL_ReleaseGPUGraphicsPipeline(device_, pipeline_);
-        if (texture_) SDL_ReleaseGPUTexture(device_, texture_);
-        if (sampler_) SDL_ReleaseGPUSampler(device_, sampler_);
         device_ = other.device_;
         pipeline_ = other.pipeline_;
         texture_ = other.texture_;
@@ -72,8 +70,6 @@ Material &Material::operator=(Material &&other) noexcept {
 
 Material::~Material() {
     if (pipeline_) SDL_ReleaseGPUGraphicsPipeline(device_, pipeline_);
-    if (texture_) SDL_ReleaseGPUTexture(device_, texture_);
-    if (sampler_) SDL_ReleaseGPUSampler(device_, sampler_);
 }
 
 void Material::Bind(SDL_GPURenderPass *pass, SDL_GPUCommandBuffer *cmdbuf) const {

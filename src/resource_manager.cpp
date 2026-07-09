@@ -1,9 +1,11 @@
 #include <resource_manager.hpp>
+#include <uploader.hpp>
 
 #include <algorithm>
 #include <format>
 #include <fstream>
 #include <stdexcept>
+#include <cstring>
 
 namespace {
 
@@ -20,8 +22,9 @@ auto InferStage(const char *filename) -> SDL_GPUShaderStage {
 
 } // namespace
 
-ResourceManager::ResourceManager(SDL_GPUDevice *device)
-    : device_(device) {
+ResourceManager::ResourceManager(SDL_GPUDevice *device, Uploader &uploader)
+    : device_(device)
+    , uploader_(uploader) {
     const char *p = chk(SDL_GetBasePath());
     base_path_ = p;
 
@@ -36,6 +39,13 @@ ResourceManager::ResourceManager(SDL_GPUDevice *device)
         shader_dir_ = "MSL"; shader_ext_ = "msl";
         entrypoint_ = "main0";
     }
+}
+
+ResourceManager::~ResourceManager() {
+    for (auto &[key, ct] : texture_cache_) {
+        if (ct.handle.texture) SDL_ReleaseGPUTexture(device_, ct.handle.texture);
+    }
+    if (default_sampler_) SDL_ReleaseGPUSampler(device_, default_sampler_);
 }
 
 SDL_GPUShader *ResourceManager::LoadShader(const char *filename, Uint32 samplerCount, Uint32 uniformBufferCount) {
@@ -79,4 +89,64 @@ SDL_GPUShader *ResourceManager::LoadShader(const char *filename, Uint32 samplerC
         .num_uniform_buffers = uniformBufferCount,
     };
     return chk(SDL_CreateGPUShader(device_, &shaderInfo));
+}
+
+auto ResourceManager::LoadTexture(const char *filename, SDL_GPUTextureFormat format) -> TextureHandle {
+    auto it = texture_cache_.find(filename);
+    if (it != texture_cache_.end()) {
+        it->second.handle.sampler = default_sampler_;
+        return it->second.handle;
+    }
+
+    auto path = std::format("{}/assets/textures/{}", base_path_, filename);
+    SDL_Surface *surface = chk(SDL_LoadBMP(path.c_str()));
+
+    // RGBA32 matches R8G8B8A8_UNORM byte order on both LE and BE
+    if (surface->format != SDL_PIXELFORMAT_RGBA32) {
+        SDL_Surface *converted = chk(SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA32));
+        SDL_DestroySurface(surface);
+        surface = converted;
+    }
+
+    int tex_w = surface->w;
+    int tex_h = surface->h;
+
+    SDL_GPUTextureCreateInfo texInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = format,
+        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+        .width = static_cast<Uint32>(tex_w),
+        .height = static_cast<Uint32>(tex_h),
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+    };
+    SDL_GPUTexture *texture = chk(SDL_CreateGPUTexture(device_, &texInfo));
+
+    if (!default_sampler_) {
+        SDL_GPUSamplerCreateInfo sampInfo = {
+            .min_filter = SDL_GPU_FILTER_LINEAR,
+            .mag_filter = SDL_GPU_FILTER_LINEAR,
+            .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+            .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+            .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+            .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        };
+        default_sampler_ = chk(SDL_CreateGPUSampler(device_, &sampInfo));
+    }
+
+    // Store CPU-side pixel data (tightly packed RGBA)
+    int tight_pitch = tex_w * 4;
+    std::vector<Uint8> cpu_pixels(static_cast<size_t>(tight_pitch * tex_h));
+    auto *src_row = static_cast<const Uint8 *>(surface->pixels);
+    for (int y = 0; y < tex_h; ++y) {
+        std::memcpy(cpu_pixels.data() + y * tight_pitch, src_row + y * surface->pitch, tight_pitch);
+    }
+    SDL_DestroySurface(surface);
+
+    // Queue upload via Uploader (CPU data referenced, not copied)
+    uploader_.Texture(texture, tex_w, tex_h, cpu_pixels.data());
+
+    TextureHandle handle{ texture, default_sampler_, { tex_w, tex_h } };
+    texture_cache_.emplace(filename, CachedTexture{ handle, std::move(cpu_pixels), tex_w, tex_h });
+    return handle;
 }
