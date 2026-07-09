@@ -24,7 +24,6 @@ ResourceManager::ResourceManager(SDL_GPUDevice *device)
     : device_(device) {
     const char *p = chk(SDL_GetBasePath());
     base_path_ = p;
-    SDL_free(const_cast<char *>(p));
 
     auto formats = SDL_GetGPUShaderFormats(device_);
     if (formats & SDL_GPU_SHADERFORMAT_SPIRV) {
