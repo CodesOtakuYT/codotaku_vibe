@@ -12,6 +12,11 @@ public:
     explicit ResourceManager(SDL_GPUDevice *device);
     ~ResourceManager() = default;
 
+    ResourceManager(const ResourceManager&) = delete;
+    ResourceManager& operator=(const ResourceManager&) = delete;
+    ResourceManager(ResourceManager&&) = delete;
+    ResourceManager& operator=(ResourceManager&&) = delete;
+
     SDL_GPUShader *LoadShader(const char *filename, Uint32 samplerCount = 0, Uint32 uniformBufferCount = 0);
 
 private:

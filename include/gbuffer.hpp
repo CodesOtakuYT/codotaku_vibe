@@ -15,6 +15,11 @@ public:
     GBuffer(SDL_GPUDevice *device, glm::ivec2 size);
     ~GBuffer();
 
+    GBuffer(const GBuffer&) = delete;
+    GBuffer& operator=(const GBuffer&) = delete;
+    GBuffer(GBuffer&&) = delete;
+    GBuffer& operator=(GBuffer&&) = delete;
+
     int AddAttachment(AttachmentDesc desc);
 
     SDL_GPUTexture *GetTexture(int index) const;

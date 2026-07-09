@@ -10,6 +10,11 @@ public:
     explicit Uploader(SDL_GPUDevice *device);
     ~Uploader() = default;
 
+    Uploader(const Uploader&) = delete;
+    Uploader& operator=(const Uploader&) = delete;
+    Uploader(Uploader&&) = delete;
+    Uploader& operator=(Uploader&&) = delete;
+
     void Begin();
     void Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, std::span<const std::byte> data);
     void End();
