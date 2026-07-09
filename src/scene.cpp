@@ -1,7 +1,5 @@
 #include <scene.hpp>
 
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace {
 
 constexpr PositionTextureVertex cubeVerts[24] = {
@@ -59,34 +57,37 @@ constexpr Uint16 pyramidIndices[18] = {
 
 } // namespace
 
-Scene::Scene() {
-    auto &cube = geometries_.emplace_back();
-    cube.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
-    cube.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
-
-    auto &pyramid = geometries_.emplace_back();
-    pyramid.vertices.assign(std::begin(pyramidVerts), std::end(pyramidVerts));
-    pyramid.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
-
-    instances_.push_back({ .geometry_index = 0, .material_index = 0 });
-    instances_.push_back({ .geometry_index = 0, .material_index = 1 }); // orbiting cube = wireframe
-    instances_.push_back({ .geometry_index = 1, .material_index = 0 });
+auto Scene::CreateCube() -> Geometry {
+    Geometry g;
+    g.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
+    g.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
+    return g;
 }
 
-void Scene::Update(float dt) {
-    time_ += dt;
+auto Scene::CreatePyramid() -> Geometry {
+    Geometry g;
+    g.vertices.assign(std::begin(pyramidVerts), std::end(pyramidVerts));
+    g.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
+    return g;
+}
 
-    auto &i0 = instances_[0];
-    float r0 = time_ * 0.5f;
-    i0.transform = glm::rotate(glm::mat4{1}, r0, {0, 1, 0});
+auto Scene::AddGeometry(std::span<const PositionTextureVertex> vertices,
+                        std::span<const Uint16> indices) -> size_t {
+    auto &g = geometries_.emplace_back();
+    g.vertices.assign(vertices.begin(), vertices.end());
+    g.indices.assign(indices.begin(), indices.end());
+    return geometries_.size() - 1;
+}
 
-    auto &i1 = instances_[1];
-    glm::vec3 p1{15.0f * cosf(r0 * 0.7f), 0.0f, 15.0f * sinf(r0 * 0.7f)};
-    i1.transform = glm::translate(glm::mat4{1}, p1) *
-                   glm::rotate(glm::mat4{1}, time_ * 0.8f, {1, 0, 0});
+auto Scene::AddGeometry(const ::Geometry &geometry) -> size_t {
+    auto &g = geometries_.emplace_back();
+    g.vertices.assign(geometry.vertices.begin(), geometry.vertices.end());
+    g.indices.assign(geometry.indices.begin(), geometry.indices.end());
+    return geometries_.size() - 1;
+}
 
-    auto &i2 = instances_[2];
-    glm::vec3 p2{-20.0f * cosf(r0 * 0.5f), 10.0f + 5.0f * sinf(r0 * 0.3f), -20.0f * sinf(r0 * 0.5f)};
-    i2.transform = glm::translate(glm::mat4{1}, p2) *
-                   glm::rotate(glm::mat4{1}, time_ * 0.3f, {0, 0, 1});
+auto Scene::AddInstance(size_t geometry_index, size_t material_index,
+                        const glm::mat4 &transform) -> size_t {
+    instances_.push_back({ geometry_index, material_index, transform });
+    return instances_.size() - 1;
 }
