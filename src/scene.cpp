@@ -40,20 +40,44 @@ constexpr Uint16 cubeIndices[36] = {
     22, 21, 20, 23, 22, 20,
 };
 
+constexpr PositionColorVertex pyramidVerts[5] = {
+    { {   0, 10,   0 }, { 255, 255, 255, 255 } },
+    { { -10, -10, -10 }, {   0, 255, 255, 255 } },
+    { {  10, -10, -10 }, {   0, 255, 255, 255 } },
+    { {  10, -10,  10 }, {   0, 255, 255, 255 } },
+    { { -10, -10,  10 }, {   0, 255, 255, 255 } },
+};
+
+constexpr Uint16 pyramidIndices[18] = {
+    0, 1, 2,
+    0, 2, 3,
+    0, 3, 4,
+    0, 4, 1,
+    1, 3, 2,
+    1, 4, 3,
+};
+
 } // namespace
 
 Scene::Scene() {
-    geometry_.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
-    geometry_.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
+    auto &cube = geometries_.emplace_back();
+    cube.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
+    cube.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
 
-    instances_.push_back({});
+    auto &pyramid = geometries_.emplace_back();
+    pyramid.vertices.assign(std::begin(pyramidVerts), std::end(pyramidVerts));
+    pyramid.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
+
+    instances_.push_back({ .geometry_index = 0 });
 
     instances_.push_back({
+        .geometry_index = 0,
         .position = { 15.0f, 0.0f, 0.0f },
         .rotation_axis = { 1.0f, 0.0f, 0.0f },
     });
 
     instances_.push_back({
+        .geometry_index = 1,
         .position = { -15.0f, 0.0f, -15.0f },
         .rotation_axis = { 0.0f, 0.0f, 1.0f },
     });

@@ -16,6 +16,7 @@ struct Geometry {
 };
 
 struct Instance {
+    size_t geometry_index = 0;
     glm::vec3 position{0.0f};
     float rotation = 0.0f;
     glm::vec3 rotation_axis{0.0f, 1.0f, 0.0f};
@@ -29,10 +30,10 @@ public:
     ~Scene() = default;
 
     void Update(float dt);
-    const Geometry &GetGeometry() const { return geometry_; }
+    std::span<const Geometry> Geometries() const { return geometries_; }
     std::span<const Instance> Instances() const { return instances_; }
 
 private:
-    Geometry geometry_;
+    std::vector<Geometry> geometries_;
     std::vector<Instance> instances_;
 };
