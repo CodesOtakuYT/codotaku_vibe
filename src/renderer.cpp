@@ -57,11 +57,10 @@ Uint16 cubeIndices[36] = {
 
 Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &uploader, MsaaMode msaa)
     : gpu_(gpu)
-    , gbuffer_(gpu->Device(), gpu->Width(), gpu->Height())
+    , gbuffer_(gpu->Device(), gpu->Size())
     , uploader_(uploader)
     , msaa_(msaa)
-    , width_(gpu->Width())
-    , height_(gpu->Height()) {
+    , size_(gpu->Size()) {
 
     auto device = gpu_->Device();
     auto sampleCount = ChooseSampleCount(device, gpu_->SwapchainFormat(), msaa);
@@ -169,8 +168,8 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
     index_buffer_ = chk(SDL_CreateGPUBuffer(device, &ibInfo));
 
     uploader_.Begin();
-    uploader_.Buffer(vertex_buffer_, 0, vertSpan.data(), static_cast<Uint32>(vertSpan.size_bytes()));
-    uploader_.Buffer(index_buffer_, 0, idxSpan.data(), static_cast<Uint32>(idxSpan.size_bytes()));
+    uploader_.Buffer(vertex_buffer_, 0, std::as_bytes(vertSpan));
+    uploader_.Buffer(index_buffer_, 0, std::as_bytes(idxSpan));
     uploader_.End();
 }
 
@@ -181,10 +180,9 @@ Renderer::~Renderer() {
     SDL_ReleaseGPUBuffer(device, index_buffer_);
 }
 
-void Renderer::Resize(int w, int h) {
-    width_ = w;
-    height_ = h;
-    gbuffer_.Resize(w, h);
+void Renderer::Resize(glm::ivec2 size) {
+    size_ = size;
+    gbuffer_.Resize(size);
 }
 
 void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, Scene &scene) {
@@ -232,13 +230,13 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
         SDL_GPUBlitInfo blitInfo = {
             .source = {
                 .texture = gbuffer_.GetTexture(resolve_att_),
-                .w = static_cast<Uint32>(width_),
-                .h = static_cast<Uint32>(height_),
+                .w = static_cast<Uint32>(size_.x),
+                .h = static_cast<Uint32>(size_.y),
             },
             .destination = {
                 .texture = swapchain,
-                .w = static_cast<Uint32>(width_),
-                .h = static_cast<Uint32>(height_),
+                .w = static_cast<Uint32>(size_.x),
+                .h = static_cast<Uint32>(size_.y),
             },
             .load_op = SDL_GPU_LOADOP_DONT_CARE,
             .filter = SDL_GPU_FILTER_LINEAR,

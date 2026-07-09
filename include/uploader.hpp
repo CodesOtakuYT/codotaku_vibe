@@ -1,6 +1,8 @@
 #pragma once
 
 #include <sdl.hpp>
+#include <cstddef>
+#include <span>
 #include <vector>
 
 class Uploader {
@@ -9,13 +11,13 @@ public:
     ~Uploader() = default;
 
     void Begin();
-    void Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, const void *data, Uint32 size);
+    void Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, std::span<const std::byte> data);
     void End();
 
 private:
     struct BufferCopy {
         SDL_GPUBuffer *buffer;
-        const void *data;
+        const std::byte *data;
         Uint32 dst_offset;
         Uint32 size;
     };

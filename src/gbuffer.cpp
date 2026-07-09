@@ -1,7 +1,7 @@
 #include <gbuffer.hpp>
 
-GBuffer::GBuffer(SDL_GPUDevice *device, int width, int height)
-    : device_(device), width_(width), height_(height) {}
+GBuffer::GBuffer(SDL_GPUDevice *device, glm::ivec2 size)
+    : device_(device), size_(size) {}
 
 GBuffer::~GBuffer() {
     for (auto &att : attachments_)
@@ -25,8 +25,8 @@ void GBuffer::CreateAttachment(Attachment &att) {
         .type = SDL_GPU_TEXTURETYPE_2D,
         .format = att.desc.format,
         .usage = att.desc.usage,
-        .width = static_cast<Uint32>(width_),
-        .height = static_cast<Uint32>(height_),
+        .width = static_cast<Uint32>(size_.x),
+        .height = static_cast<Uint32>(size_.y),
         .layer_count_or_depth = 1,
         .num_levels = 1,
         .sample_count = att.desc.sample_count,
@@ -39,10 +39,9 @@ void GBuffer::DestroyAttachment(Attachment &att) {
     att.texture = nullptr;
 }
 
-void GBuffer::Resize(int width, int height) {
-    if (width == width_ && height == height_) return;
-    width_ = width;
-    height_ = height;
+void GBuffer::Resize(glm::ivec2 size) {
+    if (size == size_) return;
+    size_ = size;
     for (auto &att : attachments_) {
         DestroyAttachment(att);
         CreateAttachment(att);

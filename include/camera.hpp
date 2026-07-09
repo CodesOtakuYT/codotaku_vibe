@@ -9,7 +9,7 @@ public:
 
     void Event(const SDL_Event &event);
 
-    glm::mat4 ViewProjMatrix(int w, int h) const;
+    glm::mat4 ViewProjMatrix(glm::ivec2 viewport) const;
 
 private:
     glm::vec2 last_mouse_{};

@@ -1,15 +1,16 @@
 #include <gpu_context.hpp>
 
-GPUContext::GPUContext(const char *title, int width, int height) {
+GPUContext::GPUContext(const char *title, glm::ivec2 size)
+    : size_(size) {
     chk(SDL_SetAppMetadata(title, "0.0.1", "com.codotaku.engine"));
     chk(SDL_Init(SDL_INIT_VIDEO));
-    window_ = chk(SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE));
+    window_ = chk(SDL_CreateWindow(title, size.x, size.y, SDL_WINDOW_RESIZABLE));
     device_ = chk(SDL_CreateGPUDevice(
         SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL,
         true, nullptr));
     chk(SDL_ClaimWindowForGPUDevice(device_, window_));
     chk(SDL_ShowWindow(window_));
-    SDL_GetWindowSizeInPixels(window_, &win_w_, &win_h_);
+    SDL_GetWindowSizeInPixels(window_, &size_.x, &size_.y);
 }
 
 GPUContext::~GPUContext() {
@@ -42,9 +43,9 @@ bool GPUContext::BeginFrame(SDL_GPUCommandBuffer *&cmdbuf, SDL_GPUTexture *&swap
 
     int w, h;
     SDL_GetWindowSizeInPixels(window_, &w, &h);
-    if (w != win_w_ || h != win_h_) {
-        win_w_ = w;
-        win_h_ = h;
+    if (w != size_.x || h != size_.y) {
+        size_.x = w;
+        size_.y = h;
     }
 
     return true;

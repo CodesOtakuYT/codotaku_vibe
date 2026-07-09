@@ -34,8 +34,8 @@ void OrbitCamera::Event(const SDL_Event &event) {
     }
 }
 
-glm::mat4 OrbitCamera::ViewProjMatrix(int w, int h) const {
-    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(w), static_cast<float>(h), 0.01f, 100.0f);
+glm::mat4 OrbitCamera::ViewProjMatrix(glm::ivec2 viewport) const {
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.01f, 100.0f);
     proj[1][1] *= -1.0f;
 
     glm::vec3 eye(

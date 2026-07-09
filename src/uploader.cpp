@@ -9,8 +9,8 @@ void Uploader::Begin() {
     copies_.clear();
 }
 
-void Uploader::Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, const void *data, Uint32 size) {
-    copies_.push_back({dst, data, dst_offset, size});
+void Uploader::Buffer(SDL_GPUBuffer *dst, Uint32 dst_offset, std::span<const std::byte> data) {
+    copies_.push_back({dst, data.data(), dst_offset, static_cast<Uint32>(data.size())});
 }
 
 void Uploader::End() {

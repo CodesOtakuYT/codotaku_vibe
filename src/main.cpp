@@ -12,7 +12,7 @@
 class Engine : public App {
 public:
     explicit Engine(std::span<char *> args) {
-        gpu_ = std::make_unique<GPUContext>("Codotaku Vibe Engine", 800, 600);
+        gpu_ = std::make_unique<GPUContext>("Codotaku Vibe Engine", glm::ivec2(800, 600));
         resources_ = std::make_unique<ResourceManager>(gpu_->Device());
         uploader_ = std::make_unique<Uploader>(gpu_->Device());
         camera_ = std::make_unique<OrbitCamera>();
@@ -40,15 +40,14 @@ public:
         float dt = (now - last_ticks_) / 1000.0f;
         last_ticks_ = now;
 
-        int w = gpu_->Width(), h = gpu_->Height();
-        if (w != last_w_ || h != last_h_) {
-            last_w_ = w;
-            last_h_ = h;
-            renderer_->Resize(w, h);
+        auto size = gpu_->Size();
+        if (size != last_size_) {
+            last_size_ = size;
+            renderer_->Resize(size);
         }
 
         scene_->Update(dt);
-        auto viewProj = camera_->ViewProjMatrix(w, h);
+        auto viewProj = camera_->ViewProjMatrix(size);
         renderer_->Render(cmdbuf, swapchain, viewProj, *scene_);
         gpu_->EndFrame(cmdbuf);
         return SDL_APP_CONTINUE;
@@ -62,7 +61,7 @@ private:
     std::unique_ptr<Scene> scene_;
     std::unique_ptr<Renderer> renderer_;
     Uint64 last_ticks_{SDL_GetTicks()};
-    int last_w_ = 800, last_h_ = 600;
+    glm::ivec2 last_size_{800, 600};
 };
 
 std::unique_ptr<App> CreateApp(std::span<char *> args) {

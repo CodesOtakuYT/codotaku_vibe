@@ -22,7 +22,7 @@ public:
     Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &uploader, MsaaMode msaa = MsaaMode::None);
     ~Renderer();
 
-    void Resize(int w, int h);
+    void Resize(glm::ivec2 size);
     void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, Scene &scene);
 
 private:
@@ -31,8 +31,7 @@ private:
     Uploader &uploader_;
     SDL_GPUGraphicsPipeline *pipeline_ = nullptr;
     MsaaMode msaa_ = MsaaMode::None;
-    int width_ = 0;
-    int height_ = 0;
+    glm::ivec2 size_{};
     int color_att_ = -1;
     int resolve_att_ = -1;
     int depth_att_ = -1;

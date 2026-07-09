@@ -1,15 +1,15 @@
 #pragma once
 
 #include <sdl.hpp>
+#include <glm/glm.hpp>
 
 class GPUContext {
 public:
-    GPUContext(const char *title, int width, int height);
+    GPUContext(const char *title, glm::ivec2 size);
     ~GPUContext();
 
     SDL_GPUDevice *Device() const { return device_; }
-    int Width() const { return win_w_; }
-    int Height() const { return win_h_; }
+    glm::ivec2 Size() const { return size_; }
     SDL_GPUTextureFormat SwapchainFormat() const;
 
     bool BeginFrame(SDL_GPUCommandBuffer *&cmdbuf, SDL_GPUTexture *&swapchain);
@@ -18,6 +18,5 @@ public:
 private:
     SDL_Window *window_ = nullptr;
     SDL_GPUDevice *device_ = nullptr;
-    int win_w_ = 0;
-    int win_h_ = 0;
+    glm::ivec2 size_{};
 };

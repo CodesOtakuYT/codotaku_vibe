@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sdl.hpp>
+#include <glm/glm.hpp>
 #include <vector>
 
 struct AttachmentDesc {
@@ -11,17 +12,16 @@ struct AttachmentDesc {
 
 class GBuffer {
 public:
-    GBuffer(SDL_GPUDevice *device, int width, int height);
+    GBuffer(SDL_GPUDevice *device, glm::ivec2 size);
     ~GBuffer();
 
     int AddAttachment(AttachmentDesc desc);
 
     SDL_GPUTexture *GetTexture(int index) const;
 
-    void Resize(int width, int height);
+    void Resize(glm::ivec2 size);
 
-    int Width() const { return width_; }
-    int Height() const { return height_; }
+    glm::ivec2 Size() const { return size_; }
 
 private:
     struct Attachment {
@@ -34,6 +34,5 @@ private:
 
     SDL_GPUDevice *device_ = nullptr;
     std::vector<Attachment> attachments_;
-    int width_ = 0;
-    int height_ = 0;
+    glm::ivec2 size_{};
 };
