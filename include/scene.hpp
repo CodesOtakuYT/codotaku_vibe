@@ -31,9 +31,6 @@ public:
     Scene(Scene&&) = default;
     Scene& operator=(Scene&&) = default;
 
-    static Geometry CreateCube();
-    static Geometry CreatePyramid();
-
     size_t AddGeometry(std::span<const PositionTextureVertex> vertices,
                        std::span<const Uint16> indices);
     size_t AddGeometry(const ::Geometry &geometry);

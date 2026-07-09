@@ -7,6 +7,7 @@
 #include <uploader.hpp>
 #include <camera.hpp>
 #include <scene.hpp>
+#include <geometry.hpp>
 #include <renderer.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -16,8 +17,8 @@ namespace {
 
 auto MakeTestScene() -> Scene {
     Scene scene;
-    auto cubeIdx = scene.AddGeometry(Scene::CreateCube());
-    auto pyrIdx = scene.AddGeometry(Scene::CreatePyramid());
+    auto cubeIdx = scene.AddGeometry(CreateCubeGeometry());
+    auto pyrIdx = scene.AddGeometry(CreatePyramidGeometry());
     scene.AddInstance(cubeIdx, 0);
     scene.AddInstance(cubeIdx, 1);
     scene.AddInstance(pyrIdx, 0);
