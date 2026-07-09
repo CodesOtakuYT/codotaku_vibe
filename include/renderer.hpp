@@ -3,37 +3,26 @@
 #include <sdl.hpp>
 #include <glm/glm.hpp>
 
-class GPUContext;
-class GBuffer;
-class ResourceManager;
+#include <gbuffer.hpp>
 
-struct PositionColorVertex {
-    glm::vec3 pos;
-    Uint8 r, g, b, a;
-};
+class GPUContext;
+class ResourceManager;
+class OrbitCamera;
+class Scene;
 
 class Renderer {
 public:
-    Renderer(GPUContext *gpu, GBuffer *gbuffer, ResourceManager *resources);
+    enum class MsaaMode { None, X2, X4, X8 };
+
+    Renderer(GPUContext *gpu, ResourceManager *resources, MsaaMode msaa = MsaaMode::None);
     ~Renderer();
 
-    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, int w, int h, float dt);
-    void Event(const SDL_Event &event);
+    void Resize(int w, int h);
+    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, int w, int h, const OrbitCamera &camera, Scene &scene);
 
 private:
-    void CreateCubeResources();
-
     GPUContext *gpu_;
-    GBuffer *gbuffer_;
-    ResourceManager *resources_;
-
+    GBuffer gbuffer_;
     SDL_GPUGraphicsPipeline *pipeline_ = nullptr;
-    SDL_GPUBuffer *vertex_buffer_ = nullptr;
-    SDL_GPUBuffer *index_buffer_ = nullptr;
-
-    glm::vec2 last_mouse_{};
-    bool mouse_down_ = false;
-    float pitch_ = 0.3f;
-    float yaw_ = 0.0f;
-    float distance_ = 30.0f;
+    MsaaMode msaa_ = MsaaMode::None;
 };

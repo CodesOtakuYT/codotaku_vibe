@@ -3,17 +3,21 @@
 #include <SDL3/SDL_main.h>
 #include <sdl.hpp>
 #include <gpu_context.hpp>
-#include <gbuffer.hpp>
 #include <resource_manager.hpp>
+#include <uploader.hpp>
+#include <camera.hpp>
+#include <scene.hpp>
 #include <renderer.hpp>
 
 class Engine : public App {
 public:
     explicit Engine(std::span<char *> args) {
         gpu_ = std::make_unique<GPUContext>("Codotaku Vibe Engine", 800, 600);
-        gbuffer_ = std::make_unique<GBuffer>(gpu_->Device(), gpu_->Width(), gpu_->Height());
         resources_ = std::make_unique<ResourceManager>(gpu_->Device());
-        renderer_ = std::make_unique<Renderer>(gpu_.get(), gbuffer_.get(), resources_.get());
+        uploader_ = std::make_unique<Uploader>(gpu_->Device());
+        camera_ = std::make_unique<OrbitCamera>();
+        scene_ = std::make_unique<Scene>(gpu_->Device(), *uploader_);
+        renderer_ = std::make_unique<Renderer>(gpu_.get(), resources_.get(), Renderer::MsaaMode::None);
     }
 
     auto Event(const SDL_Event *event) -> SDL_AppResult override {
@@ -21,7 +25,7 @@ public:
             case SDL_EVENT_QUIT:
                 return SDL_APP_SUCCESS;
             default:
-                renderer_->Event(*event);
+                camera_->Event(*event);
                 return SDL_APP_CONTINUE;
         }
     }
@@ -40,18 +44,21 @@ public:
         if (w != last_w_ || h != last_h_) {
             last_w_ = w;
             last_h_ = h;
-            gbuffer_->Resize(w, h);
+            renderer_->Resize(w, h);
         }
 
-        renderer_->Render(cmdbuf, swapchain, w, h, dt);
+        scene_->Update(dt);
+        renderer_->Render(cmdbuf, swapchain, w, h, *camera_, *scene_);
         gpu_->EndFrame(cmdbuf);
         return SDL_APP_CONTINUE;
     }
 
 private:
     std::unique_ptr<GPUContext> gpu_;
-    std::unique_ptr<GBuffer> gbuffer_;
     std::unique_ptr<ResourceManager> resources_;
+    std::unique_ptr<Uploader> uploader_;
+    std::unique_ptr<OrbitCamera> camera_;
+    std::unique_ptr<Scene> scene_;
     std::unique_ptr<Renderer> renderer_;
     Uint64 last_ticks_{SDL_GetTicks()};
     int last_w_ = 800, last_h_ = 600;
