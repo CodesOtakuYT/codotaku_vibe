@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 #include <gbuffer.hpp>
+#include <material.hpp>
 
 #include <vector>
 
@@ -37,9 +38,7 @@ private:
     GPUContext *gpu_;
     GBuffer gbuffer_;
     Uploader &uploader_;
-    SDL_GPUGraphicsPipeline *pipeline_ = nullptr;
-    SDL_GPUTexture *texture_ = nullptr;
-    SDL_GPUSampler *sampler_ = nullptr;
+    std::vector<Material> materials_;
     MsaaMode msaa_ = MsaaMode::None;
     glm::ivec2 size_{};
     int color_att_ = -1;

@@ -24,6 +24,7 @@ add_executable(codotaku_vibe
         src/camera.cpp
         src/uploader.cpp
         src/scene.cpp
+        src/material.cpp
 )
 target_compile_options(codotaku_vibe PRIVATE /std:c++latest /EHsc)
 set_target_properties(codotaku_vibe PROPERTIES CXX_STANDARD 26 CXX_EXTENSIONS OFF)

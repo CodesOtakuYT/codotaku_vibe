@@ -17,6 +17,7 @@ struct Geometry {
 
 struct Instance {
     size_t geometry_index = 0;
+    size_t material_index = 0;
     glm::mat4 transform{1.0f};
 };
 

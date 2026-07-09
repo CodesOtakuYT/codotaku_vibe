@@ -68,9 +68,9 @@ Scene::Scene() {
     pyramid.vertices.assign(std::begin(pyramidVerts), std::end(pyramidVerts));
     pyramid.indices.assign(std::begin(pyramidIndices), std::end(pyramidIndices));
 
-    instances_.push_back({ .geometry_index = 0 });
-    instances_.push_back({ .geometry_index = 0 });
-    instances_.push_back({ .geometry_index = 1 });
+    instances_.push_back({ .geometry_index = 0, .material_index = 0 });
+    instances_.push_back({ .geometry_index = 0, .material_index = 0 });
+    instances_.push_back({ .geometry_index = 1, .material_index = 0 });
 }
 
 void Scene::Update(float dt) {

@@ -55,10 +55,6 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
     SDL_GPUShader *vert = resources->LoadShader("Cube.vert", 0, 1);
     SDL_GPUShader *frag = resources->LoadShader("Cube.frag", 1);
 
-    SDL_GPUColorTargetDescription colorDesc = {
-        .format = gpu_->SwapchainFormat(),
-    };
-
     SDL_GPUVertexBufferDescription vbDesc = {
         .slot = 0,
         .pitch = sizeof(PositionTextureVertex),
@@ -77,41 +73,70 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
         .num_vertex_attributes = 2,
     };
 
-    SDL_GPUDepthStencilState depthState = {
-        .compare_op = SDL_GPU_COMPAREOP_LESS,
-        .enable_depth_test = true,
-        .enable_depth_write = true,
-    };
+    // Load texture
+    const char *base = SDL_GetBasePath();
+    std::string texPath = std::string(base) + "assets/textures/ravioli.bmp";
+    SDL_Surface *surface = chk(SDL_LoadBMP(texPath.c_str()));
 
-    SDL_GPURasterizerState rasterState = {
-        .fill_mode = SDL_GPU_FILLMODE_FILL,
-        .cull_mode = SDL_GPU_CULLMODE_BACK,
-        .front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE,
+    SDL_GPUTextureCreateInfo texInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+        .width = static_cast<Uint32>(surface->w),
+        .height = static_cast<Uint32>(surface->h),
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
     };
+    SDL_GPUTexture *texture = chk(SDL_CreateGPUTexture(device, &texInfo));
 
-    SDL_GPUGraphicsPipelineTargetInfo targetInfo = {
-        .color_target_descriptions = &colorDesc,
-        .num_color_targets = 1,
-        .depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
-        .has_depth_stencil_target = true,
+    SDL_GPUSamplerCreateInfo sampInfo = {
+        .min_filter = SDL_GPU_FILTER_LINEAR,
+        .mag_filter = SDL_GPU_FILTER_LINEAR,
+        .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+        .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
     };
+    SDL_GPUSampler *sampler = chk(SDL_CreateGPUSampler(device, &sampInfo));
 
-    SDL_GPUMultisampleState multisampleState = {
-        .sample_count = sampleCount,
+    Uint32 texSize = static_cast<Uint32>(surface->w * surface->h * 4);
+    SDL_GPUTransferBufferCreateInfo tbInfo = {
+        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
+        .size = texSize,
     };
+    SDL_GPUTransferBuffer *tbuf = chk(SDL_CreateGPUTransferBuffer(device, &tbInfo));
+    auto *mapped = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device, tbuf, false)));
+    std::memcpy(mapped, surface->pixels, texSize);
+    SDL_UnmapGPUTransferBuffer(device, tbuf);
 
-    SDL_GPUGraphicsPipelineCreateInfo info = {
-        .vertex_shader = vert,
-        .fragment_shader = frag,
-        .vertex_input_state = vertexInput,
-        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-        .rasterizer_state = rasterState,
-        .multisample_state = multisampleState,
-        .depth_stencil_state = depthState,
-        .target_info = targetInfo,
+    SDL_GPUCommandBuffer *cmd = chk(SDL_AcquireGPUCommandBuffer(device));
+    SDL_GPUCopyPass *copy = chk(SDL_BeginGPUCopyPass(cmd));
+    SDL_GPUTextureTransferInfo srcInfo = { .transfer_buffer = tbuf, .offset = 0 };
+    SDL_GPUTextureRegion dstRegion = {
+        .texture = texture,
+        .w = static_cast<Uint32>(surface->w),
+        .h = static_cast<Uint32>(surface->h),
+        .d = 1,
     };
+    SDL_UploadToGPUTexture(copy, &srcInfo, &dstRegion, false);
+    SDL_EndGPUCopyPass(copy);
+    chk(SDL_SubmitGPUCommandBuffer(cmd));
 
-    pipeline_ = chk(SDL_CreateGPUGraphicsPipeline(device, &info));
+    SDL_ReleaseGPUTransferBuffer(device, tbuf);
+    SDL_DestroySurface(surface);
+
+    materials_.emplace_back(
+        device,
+        MaterialCreateInfo{
+            .vertex_shader = vert,
+            .fragment_shader = frag,
+            .texture = texture,
+            .sampler = sampler,
+            .color_format = gpu_->SwapchainFormat(),
+            .sample_count = sampleCount,
+        },
+        vertexInput
+    );
 
     SDL_ReleaseGPUShader(device, vert);
     SDL_ReleaseGPUShader(device, frag);
@@ -136,65 +161,10 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
         uploader_.Buffer(gb.index_buffer, 0, std::as_bytes(std::span(geo.indices)));
     }
     uploader_.End();
-
-    // Load texture
-    const char *base = SDL_GetBasePath();
-    std::string texPath = std::string(base) + "assets/textures/ravioli.bmp";
-    SDL_Surface *surface = chk(SDL_LoadBMP(texPath.c_str()));
-
-    SDL_GPUTextureCreateInfo texInfo = {
-        .type = SDL_GPU_TEXTURETYPE_2D,
-        .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
-        .width = static_cast<Uint32>(surface->w),
-        .height = static_cast<Uint32>(surface->h),
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-    };
-    texture_ = chk(SDL_CreateGPUTexture(device, &texInfo));
-
-    SDL_GPUSamplerCreateInfo sampInfo = {
-        .min_filter = SDL_GPU_FILTER_LINEAR,
-        .mag_filter = SDL_GPU_FILTER_LINEAR,
-        .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
-        .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
-        .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
-        .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
-    };
-    sampler_ = chk(SDL_CreateGPUSampler(device, &sampInfo));
-
-    Uint32 texSize = static_cast<Uint32>(surface->w * surface->h * 4);
-    SDL_GPUTransferBufferCreateInfo tbInfo = {
-        .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
-        .size = texSize,
-    };
-    SDL_GPUTransferBuffer *tbuf = chk(SDL_CreateGPUTransferBuffer(device, &tbInfo));
-    auto *mapped = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device, tbuf, false)));
-    std::memcpy(mapped, surface->pixels, texSize);
-    SDL_UnmapGPUTransferBuffer(device, tbuf);
-
-    SDL_GPUCommandBuffer *cmd = chk(SDL_AcquireGPUCommandBuffer(device));
-    SDL_GPUCopyPass *copy = chk(SDL_BeginGPUCopyPass(cmd));
-    SDL_GPUTextureTransferInfo srcInfo = { .transfer_buffer = tbuf, .offset = 0 };
-    SDL_GPUTextureRegion dstRegion = {
-        .texture = texture_,
-        .w = static_cast<Uint32>(surface->w),
-        .h = static_cast<Uint32>(surface->h),
-        .d = 1,
-    };
-    SDL_UploadToGPUTexture(copy, &srcInfo, &dstRegion, false);
-    SDL_EndGPUCopyPass(copy);
-    chk(SDL_SubmitGPUCommandBuffer(cmd));
-
-    SDL_ReleaseGPUTransferBuffer(device, tbuf);
-    SDL_DestroySurface(surface);
 }
 
 Renderer::~Renderer() {
     auto device = gpu_->Device();
-    SDL_ReleaseGPUGraphicsPipeline(device, pipeline_);
-    if (texture_) SDL_ReleaseGPUTexture(device, texture_);
-    if (sampler_) SDL_ReleaseGPUSampler(device, sampler_);
     for (auto &gb : geometry_buffers_) {
         SDL_ReleaseGPUBuffer(device, gb.vertex_buffer);
         SDL_ReleaseGPUBuffer(device, gb.index_buffer);
@@ -232,12 +202,9 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
 
     SDL_GPURenderPass *pass = chk(SDL_BeginGPURenderPass(cmdbuf, &colorInfo, 1, &depthInfo));
 
-    SDL_BindGPUGraphicsPipeline(pass, pipeline_);
-
-    SDL_GPUTextureSamplerBinding texBind = { .texture = texture_, .sampler = sampler_ };
-    SDL_BindGPUFragmentSamplers(pass, 0, &texBind, 1);
-
     for (const auto &inst : scene.Instances()) {
+        materials_[inst.material_index].Bind(pass, cmdbuf);
+
         auto &gb = geometry_buffers_[inst.geometry_index];
 
         SDL_GPUBufferBinding vbBind = { .buffer = gb.vertex_buffer };
