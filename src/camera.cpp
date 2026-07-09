@@ -29,13 +29,13 @@ void OrbitCamera::Event(const SDL_Event &event) {
             break;
         case SDL_EVENT_MOUSE_WHEEL:
             distance_ *= (event.wheel.y > 0) ? 0.9f : 1.1f;
-            distance_ = glm::clamp(distance_, 5.0f, 80.0f);
+            distance_ = glm::clamp(distance_, 5.0f, 200.0f);
             break;
     }
 }
 
 glm::mat4 OrbitCamera::ViewProjMatrix(glm::ivec2 viewport) const {
-    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.01f, 100.0f);
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.01f, 400.0f);
     proj[1][1] *= -1.0f;
 
     glm::vec3 eye(

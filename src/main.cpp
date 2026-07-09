@@ -15,13 +15,20 @@
 
 namespace {
 
+constexpr int kPerRing = 5;
+constexpr int kRings = 8;
+constexpr int kInstanceCount = kPerRing * kRings;
+
 auto MakeTestScene() -> Scene {
     Scene scene;
     auto cubeIdx = scene.AddGeometry(CreateCubeGeometry());
     auto pyrIdx = scene.AddGeometry(CreatePyramidGeometry());
-    scene.AddInstance(cubeIdx, 0);
-    scene.AddInstance(cubeIdx, 1);
-    scene.AddInstance(pyrIdx, 0);
+    for (int r = 0; r < kRings; ++r) {
+        auto geo = r % 2 == 0 ? cubeIdx : pyrIdx;
+        for (int p = 0; p < kPerRing; ++p) {
+            scene.AddInstance(geo, p % 2);
+        }
+    }
     return scene;
 }
 
@@ -64,19 +71,20 @@ public:
             renderer_.Resize(size);
         }
 
-        auto &i0 = scene_.GetInstance(0);
-        float r0 = time_ * 0.5f;
-        i0.transform = glm::rotate(glm::mat4{1}, r0, {0, 1, 0});
-
-        auto &i1 = scene_.GetInstance(1);
-        glm::vec3 p1{15.0f * cosf(r0 * 0.7f), 0.0f, 15.0f * sinf(r0 * 0.7f)};
-        i1.transform = glm::translate(glm::mat4{1}, p1) *
-                       glm::rotate(glm::mat4{1}, time_ * 0.8f, {1, 0, 0});
-
-        auto &i2 = scene_.GetInstance(2);
-        glm::vec3 p2{-20.0f * cosf(r0 * 0.5f), 10.0f + 5.0f * sinf(r0 * 0.3f), -20.0f * sinf(r0 * 0.5f)};
-        i2.transform = glm::translate(glm::mat4{1}, p2) *
-                       glm::rotate(glm::mat4{1}, time_ * 0.3f, {0, 0, 1});
+        for (int r = 0; r < kRings; ++r) {
+            float radius = 25.0f + r * 25.0f;
+            float ringOff = r * 0.3f;
+            for (int p = 0; p < kPerRing; ++p) {
+                int idx = r * kPerRing + p;
+                auto &inst = scene_.GetInstance(idx);
+                float a = time_ * (0.2f + r * 0.04f) + p * 6.2832f / kPerRing + ringOff;
+                float h = (r - kRings / 2) * 12.0f + 4.0f * sinf(time_ * 0.4f + r);
+                glm::vec3 pos{radius * cosf(a), h, radius * sinf(a)};
+                inst.transform = glm::translate(glm::mat4{1}, pos) *
+                                 glm::rotate(glm::mat4{1}, time_ * (0.3f + r * 0.05f + p * 0.1f),
+                                             glm::normalize(glm::vec3{p + 1, r + 1, p + r + 1}));
+            }
+        }
 
         auto viewProj = camera_.ViewProjMatrix(size);
         renderer_.Render(cmdbuf, swapchain, viewProj, scene_);
