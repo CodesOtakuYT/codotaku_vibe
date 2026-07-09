@@ -1,53 +1,25 @@
 #include <renderer.hpp>
+#include <gpu_context.hpp>
+#include <gbuffer.hpp>
+#include <resource_manager.hpp>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstring>
-#include <format>
-#include <fstream>
-#include <stdexcept>
-#include <vector>
+#include <span>
 
-namespace {
+Renderer::Renderer(GPUContext *gpu, GBuffer *gbuffer, ResourceManager *resources)
+    : gpu_(gpu), gbuffer_(gbuffer), resources_(resources) {
 
-auto InferStage(const char *filename) -> SDL_GPUShaderStage {
-    auto sv = std::string_view(filename);
-    auto dot = sv.rfind('.');
-    if (dot == std::string_view::npos)
-        throw std::runtime_error(std::format("Cannot infer shader stage from: {}", filename));
-    auto ext = sv.substr(dot);
-    if (ext == ".vert") return SDL_GPU_SHADERSTAGE_VERTEX;
-    if (ext == ".frag") return SDL_GPU_SHADERSTAGE_FRAGMENT;
-    throw std::runtime_error(std::format("Unknown shader extension: {}", ext));
-}
+    auto device = gpu_->Device();
 
-} // namespace
-
-Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device)
-    : window_(window), device_(device) {
-    base_path_ = chk(SDL_GetBasePath());
-    SDL_GetWindowSizeInPixels(window_, &win_w_, &win_h_);
-
-    auto formats = SDL_GetGPUShaderFormats(device_);
-    if (formats & SDL_GPU_SHADERFORMAT_SPIRV) {
-        shader_dir_ = "SPIRV"; shader_ext_ = "spv";
-        entrypoint_ = "main";
-    } else if (formats & SDL_GPU_SHADERFORMAT_DXIL) {
-        shader_dir_ = "DXIL"; shader_ext_ = "dxil";
-        entrypoint_ = "main";
-    } else if (formats & SDL_GPU_SHADERFORMAT_MSL) {
-        shader_dir_ = "MSL"; shader_ext_ = "msl";
-        entrypoint_ = "main0";
-    }
-
-    SDL_GPUShader *vert = LoadShader("Cube.vert", 0, 1);
-    SDL_GPUShader *frag = LoadShader("Cube.frag");
+    SDL_GPUShader *vert = resources_->LoadShader("Cube.vert", 0, 1);
+    SDL_GPUShader *frag = resources_->LoadShader("Cube.frag");
 
     SDL_GPUColorTargetDescription colorDesc = {
-        .format = SDL_GetGPUSwapchainTextureFormat(device_, window_),
+        .format = gpu_->SwapchainFormat(),
     };
 
     SDL_GPUVertexBufferDescription vbDesc = {
@@ -97,61 +69,24 @@ Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device)
         .target_info = targetInfo,
     };
 
-    pipeline_ = chk(SDL_CreateGPUGraphicsPipeline(device_, &info));
+    pipeline_ = chk(SDL_CreateGPUGraphicsPipeline(device, &info));
 
-    SDL_ReleaseGPUShader(device_, vert);
-    SDL_ReleaseGPUShader(device_, frag);
+    SDL_ReleaseGPUShader(device, vert);
+    SDL_ReleaseGPUShader(device, frag);
 
     CreateCubeResources();
 }
 
 Renderer::~Renderer() {
-    SDL_ReleaseGPUGraphicsPipeline(device_, pipeline_);
-    SDL_ReleaseGPUBuffer(device_, vertex_buffer_);
-    SDL_ReleaseGPUBuffer(device_, index_buffer_);
-    SDL_ReleaseGPUTexture(device_, depth_texture_);
-}
-
-auto Renderer::LoadShader(const char *filename, Uint32 samplerCount, Uint32 uniformBufferCount) -> SDL_GPUShader * {
-    auto stage = InferStage(filename);
-
-    auto path = std::format("{}/assets/shaders/compiled/{}/{}.{}", base_path_, shader_dir_, filename, shader_ext_);
-
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file.is_open())
-        throw std::runtime_error(std::format("Failed to open shader: {}", path));
-
-    auto end = file.tellg();
-    if (end < 0)
-        throw std::runtime_error(std::format("Failed to read shader size: {}", path));
-
-    auto size = static_cast<size_t>(end);
-    file.seekg(0);
-
-    SDL_GPUShaderFormat format;
-    if (shader_ext_ == "spv") format = SDL_GPU_SHADERFORMAT_SPIRV;
-    else if (shader_ext_ == "dxil") format = SDL_GPU_SHADERFORMAT_DXIL;
-    else format = SDL_GPU_SHADERFORMAT_MSL;
-
-    std::vector<Uint8> code(size);
-    file.read(reinterpret_cast<char *>(code.data()), static_cast<std::streamsize>(size));
-    if (static_cast<size_t>(file.gcount()) != size)
-        throw std::runtime_error(std::format("Short read on shader: {}", path));
-
-    SDL_GPUShaderCreateInfo shaderInfo = {
-        .code_size = code.size(),
-        .code = code.data(),
-        .entrypoint = entrypoint_,
-        .format = format,
-        .stage = stage,
-        .num_samplers = samplerCount,
-        .num_uniform_buffers = uniformBufferCount,
-    };
-
-    return chk(SDL_CreateGPUShader(device_, &shaderInfo));
+    auto device = gpu_->Device();
+    SDL_ReleaseGPUGraphicsPipeline(device, pipeline_);
+    SDL_ReleaseGPUBuffer(device, vertex_buffer_);
+    SDL_ReleaseGPUBuffer(device, index_buffer_);
 }
 
 void Renderer::CreateCubeResources() {
+    auto device = gpu_->Device();
+
     PositionColorVertex verts[24] = {
         { { -10, -10, -10 }, 255,   0,   0, 255 },
         { {  10, -10, -10 }, 255,   0,   0, 255 },
@@ -195,26 +130,26 @@ void Renderer::CreateCubeResources() {
         .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
         .size = static_cast<Uint32>(vertSpan.size_bytes()),
     };
-    vertex_buffer_ = chk(SDL_CreateGPUBuffer(device_, &vbInfo));
+    vertex_buffer_ = chk(SDL_CreateGPUBuffer(device, &vbInfo));
 
     SDL_GPUBufferCreateInfo ibInfo = {
         .usage = SDL_GPU_BUFFERUSAGE_INDEX,
         .size = static_cast<Uint32>(idxSpan.size_bytes()),
     };
-    index_buffer_ = chk(SDL_CreateGPUBuffer(device_, &ibInfo));
+    index_buffer_ = chk(SDL_CreateGPUBuffer(device, &ibInfo));
 
     SDL_GPUTransferBufferCreateInfo tbInfo = {
         .usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD,
         .size = static_cast<Uint32>(vertSpan.size_bytes() + idxSpan.size_bytes()),
     };
-    SDL_GPUTransferBuffer *transfer = chk(SDL_CreateGPUTransferBuffer(device_, &tbInfo));
+    SDL_GPUTransferBuffer *transfer = chk(SDL_CreateGPUTransferBuffer(device, &tbInfo));
 
-    Uint8 *data = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device_, transfer, false)));
+    Uint8 *data = static_cast<Uint8 *>(chk(SDL_MapGPUTransferBuffer(device, transfer, false)));
     std::memcpy(data, vertSpan.data(), vertSpan.size_bytes());
     std::memcpy(data + vertSpan.size_bytes(), idxSpan.data(), idxSpan.size_bytes());
-    SDL_UnmapGPUTransferBuffer(device_, transfer);
+    SDL_UnmapGPUTransferBuffer(device, transfer);
 
-    SDL_GPUCommandBuffer *cmdbuf = chk(SDL_AcquireGPUCommandBuffer(device_));
+    SDL_GPUCommandBuffer *cmdbuf = chk(SDL_AcquireGPUCommandBuffer(device));
     SDL_GPUCopyPass *copy = chk(SDL_BeginGPUCopyPass(cmdbuf));
 
     SDL_GPUTransferBufferLocation srcLoc = { .transfer_buffer = transfer, .offset = 0 };
@@ -229,50 +164,11 @@ void Renderer::CreateCubeResources() {
 
     SDL_EndGPUCopyPass(copy);
     chk(SDL_SubmitGPUCommandBuffer(cmdbuf));
-    SDL_ReleaseGPUTransferBuffer(device_, transfer);
-
-    CreateDepthTexture();
+    SDL_ReleaseGPUTransferBuffer(device, transfer);
 }
 
-void Renderer::CreateDepthTexture() {
-    SDL_ReleaseGPUTexture(device_, depth_texture_);
-
-    SDL_GPUTextureCreateInfo dtInfo = {
-        .type = SDL_GPU_TEXTURETYPE_2D,
-        .format = SDL_GPU_TEXTUREFORMAT_D16_UNORM,
-        .usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
-        .width = static_cast<Uint32>(win_w_),
-        .height = static_cast<Uint32>(win_h_),
-        .layer_count_or_depth = 1,
-        .num_levels = 1,
-        .sample_count = SDL_GPU_SAMPLECOUNT_1,
-    };
-    depth_texture_ = chk(SDL_CreateGPUTexture(device_, &dtInfo));
-}
-
-void Renderer::Render(float dt) {
-    SDL_GPUCommandBuffer *cmdbuf = chk(SDL_AcquireGPUCommandBuffer(device_));
-
-    SDL_GPUTexture *swapchainTexture = nullptr;
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, window_, &swapchainTexture, nullptr, nullptr)) {
-        chk(SDL_SubmitGPUCommandBuffer(cmdbuf));
-        return;
-    }
-
-    if (!swapchainTexture) {
-        chk(SDL_SubmitGPUCommandBuffer(cmdbuf));
-        return;
-    }
-
-    int w, h;
-    SDL_GetWindowSizeInPixels(window_, &w, &h);
-    if (w != win_w_ || h != win_h_) {
-        win_w_ = w;
-        win_h_ = h;
-        CreateDepthTexture();
-    }
-
-    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(win_w_), static_cast<float>(win_h_), 0.01f, 100.0f);
+void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, int w, int h, float dt) {
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(w), static_cast<float>(h), 0.01f, 100.0f);
     proj[1][1] *= -1.0f;
 
     glm::vec3 eye(
@@ -285,14 +181,14 @@ void Renderer::Render(float dt) {
     glm::mat4 mvp = proj * view * model;
 
     SDL_GPUColorTargetInfo colorInfo = {
-        .texture = swapchainTexture,
+        .texture = swapchain,
         .clear_color = SDL_FColor{ 0.1f, 0.1f, 0.2f, 1.0f },
         .load_op = SDL_GPU_LOADOP_CLEAR,
         .store_op = SDL_GPU_STOREOP_STORE,
     };
 
     SDL_GPUDepthStencilTargetInfo depthInfo = {
-        .texture = depth_texture_,
+        .texture = gbuffer_->DepthTexture(),
         .clear_depth = 1.0f,
         .load_op = SDL_GPU_LOADOP_CLEAR,
         .store_op = SDL_GPU_STOREOP_STORE,
@@ -314,7 +210,6 @@ void Renderer::Render(float dt) {
     SDL_DrawGPUIndexedPrimitives(pass, 36, 1, 0, 0, 0);
 
     SDL_EndGPURenderPass(pass);
-    chk(SDL_SubmitGPUCommandBuffer(cmdbuf));
 }
 
 void Renderer::Event(const SDL_Event &event) {
