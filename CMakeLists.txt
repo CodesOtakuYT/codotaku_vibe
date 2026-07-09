@@ -1,21 +1,27 @@
 cmake_minimum_required(VERSION 4.2)
 project(codotaku_vibe)
 
-set(CMAKE_CXX_STANDARD 26)
-
-include(FetchContent)
-
-FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.4.12
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cpm" CACHE PATH "Force CPM cache directory" FORCE)
+file(
+        DOWNLOAD
+        https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.40.8/CPM.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
+        EXPECTED_HASH SHA256=78ba32abdf798bc616bab7c73aac32a17bbd7b06ad9e26a6add69de8f3ae4791
 )
+include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
-FetchContent_MakeAvailable(SDL3)
+
+CPMAddPackage("gh:libsdl-org/SDL#release-3.4.12")
+CPMAddPackage("gh:g-truc/glm#1.0.3")
+CPMAddPackage("gh:skypjack/entt@3.16.0")
 
 add_executable(codotaku_vibe src/main.cpp)
+target_compile_options(codotaku_vibe PRIVATE /std:c++latest)
+set_target_properties(codotaku_vibe PROPERTIES CXX_STANDARD 26 CXX_EXTENSIONS OFF)
 target_link_libraries(codotaku_vibe
         PRIVATE SDL3::SDL3
+        PRIVATE glm::glm
+        PRIVATE EnTT::EnTT
 )
 target_include_directories(codotaku_vibe PRIVATE include)
 add_custom_command(

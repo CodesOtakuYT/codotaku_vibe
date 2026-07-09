@@ -1,0 +1,91 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "msvc-debug",
+            "displayName": "MSVC Debug",
+            "description": "Debug build using MSVC x64 + Ninja",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "vendor": {
+                "jetbrains.com/clion": {
+                    "toolchain": "Visual Studio"
+                }
+            }
+        },
+        {
+            "name": "msvc-release",
+            "displayName": "MSVC Release",
+            "description": "Release build using MSVC x64 + Ninja",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/msvc-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "vendor": {
+                "jetbrains.com/clion": {
+                    "toolchain": "Visual Studio"
+                }
+            }
+        },
+        {
+            "name": "mingw-debug",
+            "displayName": "MinGW Debug",
+            "description": "Debug build using CLion bundled MinGW + Ninja",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/mingw-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "gcc.exe",
+                "CMAKE_CXX_COMPILER": "g++.exe"
+            },
+            "vendor": {
+                "jetbrains.com/clion": {
+                    "toolchain": "MinGW"
+                }
+            }
+        },
+        {
+            "name": "mingw-release",
+            "displayName": "MinGW Release",
+            "description": "Release build using CLion bundled MinGW + Ninja",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/mingw-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "gcc.exe",
+                "CMAKE_CXX_COMPILER": "g++.exe"
+            },
+            "vendor": {
+                "jetbrains.com/clion": {
+                    "toolchain": "MinGW"
+                }
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc-debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc-release"
+        },
+        {
+            "name": "mingw-debug",
+            "configurePreset": "mingw-debug"
+        },
+        {
+            "name": "mingw-release",
+            "configurePreset": "mingw-release"
+        }
+    ]
+}
