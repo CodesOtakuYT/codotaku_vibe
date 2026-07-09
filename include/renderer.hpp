@@ -5,6 +5,7 @@
 
 #include <span>
 #include <string>
+#include <string_view>
 
 struct PositionColorVertex {
     glm::vec3 pos;
@@ -20,7 +21,7 @@ public:
     void Event(const SDL_Event &event);
 
 private:
-    SDL_GPUShader *LoadShader(const char *filename, SDL_GPUShaderStage stage, Uint32 samplerCount, Uint32 uniformBufferCount);
+    SDL_GPUShader *LoadShader(const char *filename, Uint32 samplerCount = 0, Uint32 uniformBufferCount = 0);
     void CreateCubeResources();
     void CreateDepthTexture();
 
@@ -32,7 +33,8 @@ private:
     SDL_GPUTexture *depth_texture_ = nullptr;
 
     std::string base_path_;
-    SDL_GPUShaderFormat shader_format_{};
+    std::string_view shader_dir_;
+    std::string_view shader_ext_;
     const char *entrypoint_ = "main";
 
     glm::vec2 last_mouse_{};

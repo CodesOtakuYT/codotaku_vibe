@@ -8,7 +8,23 @@
 #include <cstring>
 #include <format>
 #include <fstream>
+#include <stdexcept>
 #include <vector>
+
+namespace {
+
+auto InferStage(const char *filename) -> SDL_GPUShaderStage {
+    auto sv = std::string_view(filename);
+    auto dot = sv.rfind('.');
+    if (dot == std::string_view::npos)
+        throw std::runtime_error(std::format("Cannot infer shader stage from: {}", filename));
+    auto ext = sv.substr(dot);
+    if (ext == ".vert") return SDL_GPU_SHADERSTAGE_VERTEX;
+    if (ext == ".frag") return SDL_GPU_SHADERSTAGE_FRAGMENT;
+    throw std::runtime_error(std::format("Unknown shader extension: {}", ext));
+}
+
+} // namespace
 
 Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device)
     : window_(window), device_(device) {
@@ -17,18 +33,18 @@ Renderer::Renderer(SDL_Window *window, SDL_GPUDevice *device)
 
     auto formats = SDL_GetGPUShaderFormats(device_);
     if (formats & SDL_GPU_SHADERFORMAT_SPIRV) {
-        shader_format_ = SDL_GPU_SHADERFORMAT_SPIRV;
+        shader_dir_ = "SPIRV"; shader_ext_ = "spv";
         entrypoint_ = "main";
     } else if (formats & SDL_GPU_SHADERFORMAT_DXIL) {
-        shader_format_ = SDL_GPU_SHADERFORMAT_DXIL;
+        shader_dir_ = "DXIL"; shader_ext_ = "dxil";
         entrypoint_ = "main";
     } else if (formats & SDL_GPU_SHADERFORMAT_MSL) {
-        shader_format_ = SDL_GPU_SHADERFORMAT_MSL;
+        shader_dir_ = "MSL"; shader_ext_ = "msl";
         entrypoint_ = "main0";
     }
 
-    SDL_GPUShader *vert = LoadShader("Cube.vert", SDL_GPU_SHADERSTAGE_VERTEX, 0, 1);
-    SDL_GPUShader *frag = LoadShader("Cube.frag", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0);
+    SDL_GPUShader *vert = LoadShader("Cube.vert", 0, 1);
+    SDL_GPUShader *frag = LoadShader("Cube.frag");
 
     SDL_GPUColorTargetDescription colorDesc = {
         .format = SDL_GetGPUSwapchainTextureFormat(device_, window_),
@@ -96,30 +112,37 @@ Renderer::~Renderer() {
     SDL_ReleaseGPUTexture(device_, depth_texture_);
 }
 
-auto Renderer::LoadShader(const char *filename, SDL_GPUShaderStage stage, Uint32 samplerCount, Uint32 uniformBufferCount) -> SDL_GPUShader * {
-    const char *ext = (shader_format_ == SDL_GPU_SHADERFORMAT_SPIRV) ? "spv" :
-                      (shader_format_ == SDL_GPU_SHADERFORMAT_DXIL) ? "dxil" :
-                                                                      "msl";
-    const char *dir = (shader_format_ == SDL_GPU_SHADERFORMAT_SPIRV) ? "SPIRV" :
-                      (shader_format_ == SDL_GPU_SHADERFORMAT_DXIL) ? "DXIL" :
-                                                                      "MSL";
+auto Renderer::LoadShader(const char *filename, Uint32 samplerCount, Uint32 uniformBufferCount) -> SDL_GPUShader * {
+    auto stage = InferStage(filename);
 
-    auto path = std::format("{}/assets/shaders/compiled/{}/{}.{}", base_path_, dir, filename, ext);
+    auto path = std::format("{}/assets/shaders/compiled/{}/{}.{}", base_path_, shader_dir_, filename, shader_ext_);
 
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    chk(file.is_open());
+    if (!file.is_open())
+        throw std::runtime_error(std::format("Failed to open shader: {}", path));
 
-    auto size = static_cast<size_t>(file.tellg());
+    auto end = file.tellg();
+    if (end < 0)
+        throw std::runtime_error(std::format("Failed to read shader size: {}", path));
+
+    auto size = static_cast<size_t>(end);
     file.seekg(0);
+
+    SDL_GPUShaderFormat format;
+    if (shader_ext_ == "spv") format = SDL_GPU_SHADERFORMAT_SPIRV;
+    else if (shader_ext_ == "dxil") format = SDL_GPU_SHADERFORMAT_DXIL;
+    else format = SDL_GPU_SHADERFORMAT_MSL;
 
     std::vector<Uint8> code(size);
     file.read(reinterpret_cast<char *>(code.data()), static_cast<std::streamsize>(size));
+    if (static_cast<size_t>(file.gcount()) != size)
+        throw std::runtime_error(std::format("Short read on shader: {}", path));
 
     SDL_GPUShaderCreateInfo shaderInfo = {
         .code_size = code.size(),
         .code = code.data(),
         .entrypoint = entrypoint_,
-        .format = shader_format_,
+        .format = format,
         .stage = stage,
         .num_samplers = samplerCount,
         .num_uniform_buffers = uniformBufferCount,
@@ -228,8 +251,7 @@ void Renderer::CreateDepthTexture() {
 }
 
 void Renderer::Render(float dt) {
-    SDL_GPUCommandBuffer *cmdbuf = SDL_AcquireGPUCommandBuffer(device_);
-    if (!cmdbuf) return;
+    SDL_GPUCommandBuffer *cmdbuf = chk(SDL_AcquireGPUCommandBuffer(device_));
 
     SDL_GPUTexture *swapchainTexture = nullptr;
     if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmdbuf, window_, &swapchainTexture, nullptr, nullptr)) {
