@@ -10,9 +10,12 @@ struct PositionColorVertex {
     glm::u8vec4 color;
 };
 
-struct Mesh {
+struct Geometry {
     std::vector<PositionColorVertex> vertices;
     std::vector<Uint16> indices;
+};
+
+struct Instance {
     glm::vec3 position{0.0f};
     float rotation = 0.0f;
     glm::vec3 rotation_axis{0.0f, 1.0f, 0.0f};
@@ -26,8 +29,10 @@ public:
     ~Scene() = default;
 
     void Update(float dt);
-    std::span<const Mesh> Meshes() const { return meshes_; }
+    const Geometry &GetGeometry() const { return geometry_; }
+    std::span<const Instance> Instances() const { return instances_; }
 
 private:
-    std::vector<Mesh> meshes_;
+    Geometry geometry_;
+    std::vector<Instance> instances_;
 };

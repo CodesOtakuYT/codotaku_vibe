@@ -115,37 +115,33 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
     SDL_ReleaseGPUShader(device, vert);
     SDL_ReleaseGPUShader(device, frag);
 
+    auto &geo = scene.GetGeometry();
+    index_count_ = static_cast<int>(geo.indices.size());
+
     uploader_.Begin();
-    for (const auto &mesh : scene.Meshes()) {
-        auto &mb = mesh_buffers_.emplace_back();
 
-        SDL_GPUBufferCreateInfo vbInfo = {
-            .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-            .size = static_cast<Uint32>(mesh.vertices.size() * sizeof(PositionColorVertex)),
-        };
-        mb.vertex_buffer = chk(SDL_CreateGPUBuffer(device, &vbInfo));
+    SDL_GPUBufferCreateInfo vbInfo = {
+        .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
+        .size = static_cast<Uint32>(geo.vertices.size() * sizeof(PositionColorVertex)),
+    };
+    vertex_buffer_ = chk(SDL_CreateGPUBuffer(device, &vbInfo));
+    uploader_.Buffer(vertex_buffer_, 0, std::as_bytes(std::span(geo.vertices)));
 
-        SDL_GPUBufferCreateInfo ibInfo = {
-            .usage = SDL_GPU_BUFFERUSAGE_INDEX,
-            .size = static_cast<Uint32>(mesh.indices.size() * sizeof(Uint16)),
-        };
-        mb.index_buffer = chk(SDL_CreateGPUBuffer(device, &ibInfo));
+    SDL_GPUBufferCreateInfo ibInfo = {
+        .usage = SDL_GPU_BUFFERUSAGE_INDEX,
+        .size = static_cast<Uint32>(geo.indices.size() * sizeof(Uint16)),
+    };
+    index_buffer_ = chk(SDL_CreateGPUBuffer(device, &ibInfo));
+    uploader_.Buffer(index_buffer_, 0, std::as_bytes(std::span(geo.indices)));
 
-        uploader_.Buffer(mb.vertex_buffer, 0, std::as_bytes(std::span(mesh.vertices)));
-        uploader_.Buffer(mb.index_buffer, 0, std::as_bytes(std::span(mesh.indices)));
-
-        mb.index_count = static_cast<int>(mesh.indices.size());
-    }
     uploader_.End();
 }
 
 Renderer::~Renderer() {
     auto device = gpu_->Device();
     SDL_ReleaseGPUGraphicsPipeline(device, pipeline_);
-    for (auto &mb : mesh_buffers_) {
-        SDL_ReleaseGPUBuffer(device, mb.vertex_buffer);
-        SDL_ReleaseGPUBuffer(device, mb.index_buffer);
-    }
+    SDL_ReleaseGPUBuffer(device, vertex_buffer_);
+    SDL_ReleaseGPUBuffer(device, index_buffer_);
 }
 
 void Renderer::Resize(glm::ivec2 size) {
@@ -181,21 +177,16 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
 
     SDL_BindGPUGraphicsPipeline(pass, pipeline_);
 
-    auto meshes = scene.Meshes();
-    for (size_t i = 0; i < meshes.size(); ++i) {
-        auto &mesh = meshes[i];
-        auto &mbuf = mesh_buffers_[i];
+    SDL_GPUBufferBinding vbBind = { .buffer = vertex_buffer_ };
+    SDL_BindGPUVertexBuffers(pass, 0, &vbBind, 1);
 
-        glm::mat4 mvp = viewProj * mesh.Transform();
+    SDL_GPUBufferBinding ibBind = { .buffer = index_buffer_ };
+    SDL_BindGPUIndexBuffer(pass, &ibBind, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+
+    for (const auto &inst : scene.Instances()) {
+        glm::mat4 mvp = viewProj * inst.Transform();
         SDL_PushGPUVertexUniformData(cmdbuf, 0, glm::value_ptr(mvp), sizeof(glm::mat4));
-
-        SDL_GPUBufferBinding vbBind = { .buffer = mbuf.vertex_buffer };
-        SDL_BindGPUVertexBuffers(pass, 0, &vbBind, 1);
-
-        SDL_GPUBufferBinding ibBind = { .buffer = mbuf.index_buffer };
-        SDL_BindGPUIndexBuffer(pass, &ibBind, SDL_GPU_INDEXELEMENTSIZE_16BIT);
-
-        SDL_DrawGPUIndexedPrimitives(pass, mbuf.index_count, 1, 0, 0, 0);
+        SDL_DrawGPUIndexedPrimitives(pass, index_count_, 1, 0, 0, 0);
     }
 
     SDL_EndGPURenderPass(pass);

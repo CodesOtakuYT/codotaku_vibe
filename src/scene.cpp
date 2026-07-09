@@ -43,44 +43,40 @@ constexpr Uint16 cubeIndices[36] = {
 } // namespace
 
 Scene::Scene() {
-    Mesh m0{};
-    m0.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
-    m0.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
-    meshes_.push_back(std::move(m0));
+    geometry_.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
+    geometry_.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
 
-    Mesh m1{};
-    m1.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
-    m1.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
-    m1.position = { 15.0f, 0.0f, 0.0f };
-    m1.rotation_axis = { 1.0f, 0.0f, 0.0f };
-    meshes_.push_back(std::move(m1));
+    instances_.push_back({});
 
-    Mesh m2{};
-    m2.vertices.assign(std::begin(cubeVerts), std::end(cubeVerts));
-    m2.indices.assign(std::begin(cubeIndices), std::end(cubeIndices));
-    m2.position = { -15.0f, 0.0f, -15.0f };
-    m2.rotation_axis = { 0.0f, 0.0f, 1.0f };
-    meshes_.push_back(std::move(m2));
+    instances_.push_back({
+        .position = { 15.0f, 0.0f, 0.0f },
+        .rotation_axis = { 1.0f, 0.0f, 0.0f },
+    });
+
+    instances_.push_back({
+        .position = { -15.0f, 0.0f, -15.0f },
+        .rotation_axis = { 0.0f, 0.0f, 1.0f },
+    });
 }
 
 void Scene::Update(float dt) {
-    auto &m0 = meshes_[0];
-    m0.rotation += dt * 0.5f;
+    auto &i0 = instances_[0];
+    i0.rotation += dt * 0.5f;
 
-    auto &m1 = meshes_[1];
-    float t = m0.rotation;
-    m1.position.x = 15.0f * cosf(t * 0.7f);
-    m1.position.z = 15.0f * sinf(t * 0.7f);
-    m1.rotation += dt * 0.8f;
+    auto &i1 = instances_[1];
+    float t = i0.rotation;
+    i1.position.x = 15.0f * cosf(t * 0.7f);
+    i1.position.z = 15.0f * sinf(t * 0.7f);
+    i1.rotation += dt * 0.8f;
 
-    auto &m2 = meshes_[2];
-    m2.position.x = -20.0f * cosf(t * 0.5f);
-    m2.position.z = -20.0f * sinf(t * 0.5f);
-    m2.position.y = 10.0f + 5.0f * sinf(t * 0.3f);
-    m2.rotation += dt * 0.3f;
+    auto &i2 = instances_[2];
+    i2.position.x = -20.0f * cosf(t * 0.5f);
+    i2.position.z = -20.0f * sinf(t * 0.5f);
+    i2.position.y = 10.0f + 5.0f * sinf(t * 0.3f);
+    i2.rotation += dt * 0.3f;
 }
 
-glm::mat4 Mesh::Transform() const {
+glm::mat4 Instance::Transform() const {
     return glm::translate(glm::mat4(1.0f), position) *
            glm::rotate(glm::mat4(1.0f), rotation, rotation_axis);
 }
