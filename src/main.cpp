@@ -23,19 +23,21 @@ constexpr int kPerRing = 5;
 constexpr int kRings = 8;
 constexpr int kInstanceCount = kPerRing * kRings;
 
-auto MakeTestScene() -> Scene {
+auto MakeTestScene(GltfLoadResult &outResult) -> Scene {
     Scene scene;
 
-    // Try loading a glTF model first
-    auto count = LoadGLTF("assets/models/DamagedHelmet.glb", scene);
-    if (count > 0)
+    auto result = LoadGLTF("assets/models/DamagedHelmet.glb", scene, 2);
+    if (result.entityCount > 0) {
+        outResult = std::move(result);
         return scene;
+    }
 
-    count = LoadGLTF("assets/models/BoxTextured.glb", scene);
-    if (count > 0)
+    result = LoadGLTF("assets/models/BoxTextured.glb", scene, 2);
+    if (result.entityCount > 0) {
+        outResult = std::move(result);
         return scene;
+    }
 
-    // Fallback: procedural ring of cubes/pyramids
     auto cubeIdx = scene.AddGeometry(CreateCubeGeometry());
     auto pyrIdx = scene.AddGeometry(CreatePyramidGeometry());
     for (int r = 0; r < kRings; ++r) {
@@ -55,9 +57,26 @@ public:
         : gpu_("Codotaku Vibe Engine", glm::ivec2(800, 600))
         , uploader_(gpu_.Device())
         , resources_(gpu_.Device(), uploader_)
-        , scene_(MakeTestScene())
+        , scene_(MakeTestScene(gltfResult_))
         , renderer_(&gpu_, &resources_, uploader_, scene_, Renderer::MsaaMode::None)
-    {}
+    {
+        if (!gltfResult_.materialSurfaces.empty()) {
+            SDL_Log("[engine] uploading %zu glTF textures", gltfResult_.materialSurfaces.size());
+            uploader_.Begin();
+            int i = 0;
+            for (auto *surface : gltfResult_.materialSurfaces) {
+                auto tex = resources_.LoadTextureFromSurface(surface);
+                auto matIdx = renderer_.AddMaterial(tex);
+                SDL_Log("[engine] glTF surface %d -> material %zu (texture %dx%d)",
+                        i++, matIdx, tex.size.x, tex.size.y);
+            }
+            uploader_.End();
+            SDL_Log("[engine] glTF texture upload complete");
+
+            for (auto *surface : gltfResult_.materialSurfaces)
+                SDL_DestroySurface(surface);
+        }
+    }
 
     auto Event(const SDL_Event *event) -> SDL_AppResult override {
         switch (event->type) {
@@ -118,6 +137,7 @@ private:
     Uploader uploader_;
     ResourceManager resources_;
     OrbitCamera camera_;
+    GltfLoadResult gltfResult_;
     Scene scene_;
     Renderer renderer_;
     Uint64 last_ticks_{SDL_GetTicks()};

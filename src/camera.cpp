@@ -23,7 +23,7 @@ void OrbitCamera::Event(const SDL_Event &event) {
                 float dy = static_cast<float>(event.motion.y) - last_mouse_.y;
                 last_mouse_ = glm::vec2(static_cast<float>(event.motion.x), static_cast<float>(event.motion.y));
                 yaw_ += dx * 0.005f;
-                pitch_ -= dy * 0.005f;
+                pitch_ += dy * 0.005f;
                 pitch_ = glm::clamp(pitch_, -1.5f, 1.5f);
             }
             break;
@@ -36,7 +36,6 @@ void OrbitCamera::Event(const SDL_Event &event) {
 
 glm::mat4 OrbitCamera::ViewProjMatrix(glm::ivec2 viewport) const {
     glm::mat4 proj = glm::perspectiveFov(glm::radians(75.0f), static_cast<float>(viewport.x), static_cast<float>(viewport.y), 0.01f, 400.0f);
-    proj[1][1] *= -1.0f;
 
     glm::vec3 eye(
         SDL_cosf(yaw_) * SDL_cosf(pitch_) * distance_,

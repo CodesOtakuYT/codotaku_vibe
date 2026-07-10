@@ -2,6 +2,7 @@
 
 #include <sdl.hpp>
 #include <glm/glm.hpp>
+#include <SDL3/SDL_surface.h>
 
 #include <string>
 #include <string_view>
@@ -30,6 +31,9 @@ public:
 
     TextureHandle LoadTexture(const char *filename,
                               SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
+
+    TextureHandle LoadTextureFromSurface(SDL_Surface *surface,
+                                         SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM);
 
 private:
     struct CachedTexture {

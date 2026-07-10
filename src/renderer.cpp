@@ -25,6 +25,7 @@ auto ChooseSampleCount(SDL_GPUDevice *device, SDL_GPUTextureFormat format, Rende
 
 Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &uploader, Scene &scene, MsaaMode msaa)
     : gpu_(gpu)
+    , resources_(resources)
     , gbuffer_(gpu->Device(), gpu->Size())
     , uploader_(uploader)
     , msaa_(msaa)
@@ -146,6 +147,50 @@ Renderer::~Renderer() {
 void Renderer::Resize(glm::ivec2 size) {
     size_ = size;
     gbuffer_.Resize(size);
+}
+
+auto Renderer::AddMaterial(TextureHandle texture) -> size_t {
+    auto device = gpu_->Device();
+    SDL_GPUShader *vert = resources_->LoadShader("Cube.vert", 0, 1);
+    SDL_GPUShader *frag = resources_->LoadShader("Cube.frag", 1);
+
+    auto sampleCount = ChooseSampleCount(device, gpu_->SwapchainFormat(), msaa_);
+
+    SDL_GPUVertexBufferDescription vbDesc = {
+        .slot = 0,
+        .pitch = sizeof(PositionTextureVertex),
+        .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+    };
+
+    SDL_GPUVertexAttribute attrs[2] = {
+        { .location = 0, .buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, .offset = 0 },
+        { .location = 1, .buffer_slot = 0, .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, .offset = offsetof(PositionTextureVertex, uv) },
+    };
+
+    SDL_GPUVertexInputState vertexInput = {
+        .vertex_buffer_descriptions = &vbDesc,
+        .num_vertex_buffers = 1,
+        .vertex_attributes = attrs,
+        .num_vertex_attributes = 2,
+    };
+
+    materials_.emplace_back(
+        device,
+        MaterialCreateInfo{
+            .vertex_shader = vert,
+            .fragment_shader = frag,
+            .texture = texture.texture,
+            .sampler = texture.sampler,
+            .color_format = gpu_->SwapchainFormat(),
+            .sample_count = sampleCount,
+        },
+        vertexInput
+    );
+
+    SDL_ReleaseGPUShader(device, vert);
+    SDL_ReleaseGPUShader(device, frag);
+
+    return materials_.size() - 1;
 }
 
 void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, entt::registry &scene) {

@@ -10,6 +10,8 @@
 
 #include <entt/entity/fwd.hpp>
 
+struct TextureHandle;
+
 class GPUContext;
 class ResourceManager;
 class Uploader;
@@ -30,6 +32,8 @@ public:
     void Resize(glm::ivec2 size);
     void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, entt::registry &scene);
 
+    size_t AddMaterial(TextureHandle texture);
+
 private:
     struct GeometryBuffers {
         SDL_GPUBuffer *vertex_buffer = nullptr;
@@ -39,6 +43,7 @@ private:
     };
 
     GPUContext *gpu_;
+    ResourceManager *resources_;
     GBuffer gbuffer_;
     Uploader &uploader_;
     std::vector<Material> materials_;

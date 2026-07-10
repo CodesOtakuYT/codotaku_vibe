@@ -150,3 +150,58 @@ auto ResourceManager::LoadTexture(const char *filename, SDL_GPUTextureFormat for
     texture_cache_.emplace(filename, CachedTexture{ handle, std::move(cpu_pixels), tex_w, tex_h });
     return handle;
 }
+
+auto ResourceManager::LoadTextureFromSurface(SDL_Surface *surface, SDL_GPUTextureFormat format) -> TextureHandle {
+    int tex_w = surface->w;
+    int tex_h = surface->h;
+
+    // Convert to RGBA32 if needed (creates a temporary surface we own)
+    SDL_Surface *upload_surface = surface;
+    bool own_surface = false;
+    if (surface->format != SDL_PIXELFORMAT_RGBA32) {
+        upload_surface = chk(SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA32));
+        own_surface = true;
+    }
+
+    SDL_GPUTextureCreateInfo texInfo = {
+        .type = SDL_GPU_TEXTURETYPE_2D,
+        .format = format,
+        .usage = SDL_GPU_TEXTUREUSAGE_SAMPLER,
+        .width = static_cast<Uint32>(tex_w),
+        .height = static_cast<Uint32>(tex_h),
+        .layer_count_or_depth = 1,
+        .num_levels = 1,
+    };
+    SDL_GPUTexture *texture = chk(SDL_CreateGPUTexture(device_, &texInfo));
+
+    if (!default_sampler_) {
+        SDL_GPUSamplerCreateInfo sampInfo = {
+            .min_filter = SDL_GPU_FILTER_LINEAR,
+            .mag_filter = SDL_GPU_FILTER_LINEAR,
+            .mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+            .address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+            .address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+            .address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_REPEAT,
+        };
+        default_sampler_ = chk(SDL_CreateGPUSampler(device_, &sampInfo));
+    }
+
+    // Copy pixels so we own the data until upload completes
+    int tight_pitch = tex_w * 4;
+    std::vector<Uint8> cpu_pixels(static_cast<size_t>(tight_pitch * tex_h));
+    auto *src_row = static_cast<const Uint8 *>(upload_surface->pixels);
+    for (int y = 0; y < tex_h; ++y) {
+        std::memcpy(cpu_pixels.data() + y * tight_pitch, src_row + y * upload_surface->pitch, tight_pitch);
+    }
+
+    if (own_surface)
+        SDL_DestroySurface(upload_surface);
+
+    // Queue upload via Uploader (CPU data referenced, not copied)
+    uploader_.Texture(texture, tex_w, tex_h, cpu_pixels.data());
+
+    TextureHandle handle{ texture, default_sampler_, { tex_w, tex_h } };
+    texture_cache_.emplace(std::format("__surface_{}x{}", tex_w, tex_h),
+                           CachedTexture{ handle, std::move(cpu_pixels), tex_w, tex_h });
+    return handle;
+}

@@ -28,6 +28,7 @@ add_executable(codotaku_vibe
         src/material.cpp
         src/geometry.cpp
         src/model_loader.cpp
+        src/image_decoder.cpp
 )
 target_compile_options(codotaku_vibe PRIVATE /std:c++latest /EHsc)
 set_target_properties(codotaku_vibe PROPERTIES CXX_STANDARD 26 CXX_EXTENSIONS OFF)
