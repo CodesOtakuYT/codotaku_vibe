@@ -15,7 +15,7 @@ struct PositionTextureVertex {
 
 struct Geometry {
     std::vector<PositionTextureVertex> vertices;
-    std::vector<Uint16> indices;
+    std::vector<Uint32> indices;
 };
 
 class Scene {
@@ -29,7 +29,7 @@ public:
     Scene& operator=(Scene&&) = default;
 
     size_t AddGeometry(std::span<const PositionTextureVertex> vertices,
-                       std::span<const Uint16> indices);
+                       std::span<const Uint32> indices);
     size_t AddGeometry(const ::Geometry &geometry);
 
     entt::entity CreateEntity(GeometryRef geoRef, MaterialRef matRef,

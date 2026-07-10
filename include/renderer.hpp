@@ -35,6 +35,7 @@ private:
         SDL_GPUBuffer *vertex_buffer = nullptr;
         SDL_GPUBuffer *index_buffer = nullptr;
         int index_count = 0;
+        SDL_GPUIndexElementSize index_size = SDL_GPU_INDEXELEMENTSIZE_32BIT;
     };
 
     GPUContext *gpu_;

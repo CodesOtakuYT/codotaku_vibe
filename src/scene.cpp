@@ -1,7 +1,7 @@
 #include <scene.hpp>
 
 auto Scene::AddGeometry(std::span<const PositionTextureVertex> vertices,
-                        std::span<const Uint16> indices) -> size_t {
+                        std::span<const Uint32> indices) -> size_t {
     auto &g = geometries_.emplace_back();
     g.vertices.assign(vertices.begin(), vertices.end());
     g.indices.assign(indices.begin(), indices.end());

@@ -8,6 +8,7 @@
 #include <camera.hpp>
 #include <scene.hpp>
 #include <geometry.hpp>
+#include <model_loader.hpp>
 #include <renderer.hpp>
 #include <components.hpp>
 
@@ -24,6 +25,17 @@ constexpr int kInstanceCount = kPerRing * kRings;
 
 auto MakeTestScene() -> Scene {
     Scene scene;
+
+    // Try loading a glTF model first
+    auto count = LoadGLTF("assets/models/DamagedHelmet.glb", scene);
+    if (count > 0)
+        return scene;
+
+    count = LoadGLTF("assets/models/BoxTextured.glb", scene);
+    if (count > 0)
+        return scene;
+
+    // Fallback: procedural ring of cubes/pyramids
     auto cubeIdx = scene.AddGeometry(CreateCubeGeometry());
     auto pyrIdx = scene.AddGeometry(CreatePyramidGeometry());
     for (int r = 0; r < kRings; ++r) {

@@ -29,7 +29,7 @@ constexpr PositionTextureVertex cubeVerts[24] = {
     { {  10,  10, -10 }, { 0, 1 } },
 };
 
-constexpr Uint16 cubeIndices[36] = {
+constexpr Uint32 cubeIndices[36] = {
      0,  1,  2,  0,  2,  3,
      6,  5,  4,  7,  6,  4,
      8,  9, 10,  8, 10, 11,
@@ -46,7 +46,7 @@ constexpr PositionTextureVertex pyramidVerts[5] = {
     { { -10, -10,  10 }, { 0.0f, 1.0f } },
 };
 
-constexpr Uint16 pyramidIndices[18] = {
+constexpr Uint32 pyramidIndices[18] = {
     0, 1, 2,
     0, 2, 3,
     0, 3, 4,

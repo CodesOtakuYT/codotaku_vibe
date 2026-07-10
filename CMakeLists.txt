@@ -14,6 +14,7 @@ include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 CPMAddPackage("gh:libsdl-org/SDL#release-3.4.12")
 CPMAddPackage("gh:g-truc/glm#1.0.3")
 CPMAddPackage("gh:skypjack/entt@3.16.0")
+CPMAddPackage("gh:spnda/fastgltf@0.9.0")
 
 add_executable(codotaku_vibe
         src/main.cpp
@@ -26,6 +27,7 @@ add_executable(codotaku_vibe
         src/scene.cpp
         src/material.cpp
         src/geometry.cpp
+        src/model_loader.cpp
 )
 target_compile_options(codotaku_vibe PRIVATE /std:c++latest /EHsc)
 set_target_properties(codotaku_vibe PROPERTIES CXX_STANDARD 26 CXX_EXTENSIONS OFF)
@@ -33,6 +35,7 @@ target_link_libraries(codotaku_vibe
         PRIVATE SDL3::SDL3
         PRIVATE glm::glm
         PRIVATE EnTT::EnTT
+        PRIVATE fastgltf::fastgltf
 )
 target_include_directories(codotaku_vibe PRIVATE include)
 add_custom_command(

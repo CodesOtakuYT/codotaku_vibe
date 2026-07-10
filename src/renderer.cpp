@@ -126,9 +126,10 @@ Renderer::Renderer(GPUContext *gpu, ResourceManager *resources, Uploader &upload
 
         SDL_GPUBufferCreateInfo ibInfo = {
             .usage = SDL_GPU_BUFFERUSAGE_INDEX,
-            .size = static_cast<Uint32>(geo.indices.size() * sizeof(Uint16)),
+            .size = static_cast<Uint32>(geo.indices.size() * sizeof(Uint32)),
         };
         gb.index_buffer = chk(SDL_CreateGPUBuffer(device, &ibInfo));
+        gb.index_size = SDL_GPU_INDEXELEMENTSIZE_32BIT;
         uploader_.Buffer(gb.index_buffer, 0, std::as_bytes(std::span(geo.indices)));
     }
     uploader_.End();
@@ -189,7 +190,7 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
         SDL_BindGPUVertexBuffers(pass, 0, &vbBind, 1);
 
         SDL_GPUBufferBinding ibBind = { .buffer = gb.index_buffer };
-        SDL_BindGPUIndexBuffer(pass, &ibBind, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+        SDL_BindGPUIndexBuffer(pass, &ibBind, gb.index_size);
 
         glm::mat4 mvp = viewProj * xform.value;
         SDL_PushGPUVertexUniformData(cmdbuf, 0, glm::value_ptr(mvp), sizeof(glm::mat4));
