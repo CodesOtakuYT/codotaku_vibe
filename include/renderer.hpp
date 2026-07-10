@@ -8,6 +8,8 @@
 
 #include <vector>
 
+#include <entt/entity/fwd.hpp>
+
 class GPUContext;
 class ResourceManager;
 class Uploader;
@@ -26,7 +28,7 @@ public:
     Renderer& operator=(Renderer&&) = delete;
 
     void Resize(glm::ivec2 size);
-    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, Scene &scene);
+    void Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, entt::registry &scene);
 
 private:
     struct GeometryBuffers {

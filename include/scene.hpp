@@ -5,6 +5,9 @@
 #include <span>
 #include <vector>
 
+#include <entt/entity/registry.hpp>
+#include <components.hpp>
+
 struct PositionTextureVertex {
     glm::vec3 pos;
     glm::vec2 uv;
@@ -13,12 +16,6 @@ struct PositionTextureVertex {
 struct Geometry {
     std::vector<PositionTextureVertex> vertices;
     std::vector<Uint16> indices;
-};
-
-struct Instance {
-    size_t geometry_index = 0;
-    size_t material_index = 0;
-    glm::mat4 transform{1.0f};
 };
 
 class Scene {
@@ -35,14 +32,17 @@ public:
                        std::span<const Uint16> indices);
     size_t AddGeometry(const ::Geometry &geometry);
 
-    size_t AddInstance(size_t geometry_index, size_t material_index,
-                       const glm::mat4 &transform = glm::mat4{1});
+    entt::entity CreateEntity(GeometryRef geoRef, MaterialRef matRef,
+                              const glm::mat4 &transform = glm::mat4{1});
+
+    entt::registry &Registry() { return registry_; }
+    const entt::registry &Registry() const { return registry_; }
 
     std::span<const ::Geometry> Geometries() const { return geometries_; }
-    std::span<const ::Instance> Instances() const { return instances_; }
-    ::Instance &GetInstance(size_t index) { return instances_[index]; }
+    ::Geometry &GetGeometry(size_t index) { return geometries_[index]; }
+    const ::Geometry &GetGeometry(size_t index) const { return geometries_[index]; }
 
 private:
+    entt::registry registry_;
     std::vector<::Geometry> geometries_;
-    std::vector<::Instance> instances_;
 };

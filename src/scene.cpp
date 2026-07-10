@@ -15,8 +15,11 @@ auto Scene::AddGeometry(const ::Geometry &geometry) -> size_t {
     return geometries_.size() - 1;
 }
 
-auto Scene::AddInstance(size_t geometry_index, size_t material_index,
-                        const glm::mat4 &transform) -> size_t {
-    instances_.push_back({ geometry_index, material_index, transform });
-    return instances_.size() - 1;
+auto Scene::CreateEntity(GeometryRef geoRef, MaterialRef matRef,
+                         const glm::mat4 &transform) -> entt::entity {
+    auto entity = registry_.create();
+    registry_.emplace<GeometryRef>(entity, geoRef);
+    registry_.emplace<MaterialRef>(entity, matRef);
+    registry_.emplace<Transform>(entity, transform);
+    return entity;
 }

@@ -10,6 +10,9 @@
 #include <format>
 #include <span>
 
+#include <entt/entity/registry.hpp>
+#include <components.hpp>
+
 namespace {
 
 auto ChooseSampleCount(SDL_GPUDevice *device, SDL_GPUTextureFormat format, Renderer::MsaaMode mode) -> SDL_GPUSampleCount {
@@ -144,7 +147,7 @@ void Renderer::Resize(glm::ivec2 size) {
     gbuffer_.Resize(size);
 }
 
-void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, Scene &scene) {
+void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, const glm::mat4 &viewProj, entt::registry &scene) {
     SDL_GPUColorTargetInfo colorInfo = {
         .clear_color = SDL_FColor{ 0.1f, 0.1f, 0.2f, 1.0f },
         .load_op = SDL_GPU_LOADOP_CLEAR,
@@ -171,13 +174,16 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
     SDL_GPURenderPass *pass = chk(SDL_BeginGPURenderPass(cmdbuf, &colorInfo, 1, &depthInfo));
 
     int last_mat = -1;
-    for (const auto &inst : scene.Instances()) {
-        if (static_cast<int>(inst.material_index) != last_mat) {
-            materials_[inst.material_index].Bind(pass, cmdbuf);
-            last_mat = static_cast<int>(inst.material_index);
+    auto view = scene.view<const GeometryRef, const MaterialRef, const Transform>();
+    for (auto entity : view) {
+        auto [geoRef, matRef, xform] = view.get(entity);
+
+        if (static_cast<int>(matRef.index) != last_mat) {
+            materials_[matRef.index].Bind(pass, cmdbuf);
+            last_mat = static_cast<int>(matRef.index);
         }
 
-        auto &gb = geometry_buffers_[inst.geometry_index];
+        auto &gb = geometry_buffers_[geoRef.index];
 
         SDL_GPUBufferBinding vbBind = { .buffer = gb.vertex_buffer };
         SDL_BindGPUVertexBuffers(pass, 0, &vbBind, 1);
@@ -185,7 +191,7 @@ void Renderer::Render(SDL_GPUCommandBuffer *cmdbuf, SDL_GPUTexture *swapchain, c
         SDL_GPUBufferBinding ibBind = { .buffer = gb.index_buffer };
         SDL_BindGPUIndexBuffer(pass, &ibBind, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 
-        glm::mat4 mvp = viewProj * inst.transform;
+        glm::mat4 mvp = viewProj * xform.value;
         SDL_PushGPUVertexUniformData(cmdbuf, 0, glm::value_ptr(mvp), sizeof(glm::mat4));
         SDL_DrawGPUIndexedPrimitives(pass, gb.index_count, 1, 0, 0, 0);
     }
