@@ -50,7 +50,7 @@ ResourceManager::~ResourceManager() {
 
 SDL_GPUShader *ResourceManager::LoadShader(const char *filename, Uint32 samplerCount, Uint32 uniformBufferCount) {
     auto stage = InferStage(filename);
-    auto path = std::format("{}/assets/shaders/compiled/{}/{}.{}", base_path_, shader_dir_, filename, shader_ext_);
+    auto path = std::format("{}assets/shaders/compiled/{}/{}.{}", base_path_, shader_dir_, filename, shader_ext_);
 
     auto it = bytecode_cache_.find(filename);
     if (it == bytecode_cache_.end()) {
