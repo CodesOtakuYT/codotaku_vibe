@@ -14,3 +14,5 @@ struct GeometryRef {
 struct MaterialRef {
     std::size_t index = 0;
 };
+
+struct GlTFNode {};

@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <array>
 #include <variant>
+#include <functional>
 
 namespace {
 
@@ -27,13 +28,12 @@ auto ComputeNodeTransform(const fastgltf::Node &node) -> glm::mat4 {
         if constexpr (std::is_same_v<T, fastgltf::math::fmat4x4>) {
             return glm::make_mat4(arg.data());
         } else {
-            // TRS
             const auto &trs = arg;
             glm::mat4 xform{1.0f};
-            xform = glm::scale(xform, glm::vec3{trs.scale[0], trs.scale[1], trs.scale[2]});
+            xform = glm::translate(xform, glm::vec3{trs.translation[0], trs.translation[1], trs.translation[2]});
             glm::quat q{trs.rotation[3], trs.rotation[0], trs.rotation[1], trs.rotation[2]};
             xform *= glm::mat4_cast(q);
-            xform = glm::translate(xform, glm::vec3{trs.translation[0], trs.translation[1], trs.translation[2]});
+            xform = glm::scale(xform, glm::vec3{trs.scale[0], trs.scale[1], trs.scale[2]});
             return xform;
         }
     }, node.transform);
@@ -114,18 +114,25 @@ auto LoadGLTF(std::string_view path, Scene &scene) -> size_t {
         }
     }
 
-    // Create entities for nodes with meshes
+    // Recursively process node hierarchy, accumulating transforms
     size_t entityCount = 0;
-    for (auto &node : assetRef.nodes) {
+    std::function<void(const fastgltf::Node &, glm::mat4)> processNode;
+    processNode = [&](const fastgltf::Node &node, glm::mat4 parentXform) {
+        auto worldXform = parentXform * ComputeNodeTransform(node);
         if (node.meshIndex.has_value()) {
             auto &geoIndices = meshToGeometries[static_cast<size_t>(*node.meshIndex)];
-            auto xform = ComputeNodeTransform(node);
             for (auto geoIdx : geoIndices) {
-                scene.CreateEntity({geoIdx}, {0}, xform);
+                auto entity = scene.CreateEntity({geoIdx}, {0}, worldXform);
+                scene.Registry().emplace<GlTFNode>(entity);
                 ++entityCount;
             }
         }
-    }
+        for (auto childIdx : node.children)
+            processNode(assetRef.nodes[childIdx], worldXform);
+    };
+
+    for (auto &node : assetRef.nodes)
+        processNode(node, glm::mat4{1});
 
     return entityCount;
 }

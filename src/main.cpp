@@ -90,6 +90,8 @@ public:
             int idx = 0;
             auto view = scene_.Registry().view<GeometryRef, Transform>();
             for (auto entity : view) {
+                if (scene_.Registry().all_of<GlTFNode>(entity))
+                    continue;
                 auto [geoRef, xform] = view.get(entity);
                 int r = idx / kPerRing;
                 int p = idx % kPerRing;
